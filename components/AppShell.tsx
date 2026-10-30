@@ -37,6 +37,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [menu, setMenu] = useState(false);
   const isWelcome = pathname === "/" || pathname === "/signup";
   const blocked = hydrated && !account && !isWelcome;
+  // the farmer home is only the four big options, so the bottom bar would just repeat them
+  const showNav = !isWelcome && pathname !== "/home";
 
   // every screen except log in / sign up needs a signed-in account
   useEffect(() => {
@@ -130,9 +132,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
       )}
 
-      <main className={cx("flex-1 px-4", isWelcome ? "py-0" : "pb-28 pt-4")}>{hydrated && !blocked ? children : null}</main>
+      <main className={cx("flex-1 px-4", isWelcome ? "py-0" : showNav ? "pb-28 pt-4" : "pb-4 pt-4")}>{hydrated && !blocked ? children : null}</main>
 
-      {!isWelcome && (
+      {showNav && (
         <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-line bg-white/95 backdrop-blur">
           <ul className="flex">
             {nav.map((n) => {
