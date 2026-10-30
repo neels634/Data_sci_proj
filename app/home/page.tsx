@@ -1,34 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, Landmark, ShoppingBasket, Users, ScanEye } from "lucide-react";
+import { Briefcase, Landmark, MessagesSquare, ShoppingBasket, Users, ScanEye } from "lucide-react";
 import { useStore } from "@/lib/store";
 
-/** Farmer home: main options, including direct Crop Check access. */
+/** Farmer home: main options, including Crop Check and the Krishi Mitra farming assistant. */
 export default function FarmerHome() {
   const { state, l, isMine } = useStore();
   // a small count on Sell when buyers have sent offers, so they aren't missed
   const offers = state.listings.filter((x) => isMine(x) && x.status === "Offer received").length;
 
   const tiles = [
-    { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={48} strokeWidth={1.75} />, tone: "bg-emerald-100 text-emerald-800", span: "col-span-2 py-5" },
+    { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={36} strokeWidth={1.75} />, tone: "bg-emerald-100 text-emerald-800", wide: true },
     { href: "/schemes", label: l("Schemes", "योजना"), icon: <Landmark size={44} strokeWidth={1.75} />, tone: "bg-leaf-100 text-leaf-700" },
     { href: "/sell", label: l("Sell produce", "माल विका"), icon: <ShoppingBasket size={44} strokeWidth={1.75} />, tone: "bg-soil-100 text-soil", badge: offers },
     { href: "/business", label: l("Business", "व्यवसाय"), icon: <Briefcase size={44} strokeWidth={1.75} />, tone: "bg-gold-100 text-gold" },
     { href: "/women", label: l("Women & SHG", "महिला व बचत गट"), icon: <Users size={44} strokeWidth={1.75} />, tone: "bg-[#ece4f3] text-[#5d3f7a]" },
+    { href: "/ask", label: l("Ask Krishi Mitra", "कृषी मित्राला विचारा"), icon: <MessagesSquare size={36} strokeWidth={1.75} />, tone: "bg-leaf-700 text-white", wide: true },
   ];
 
   return (
-    <nav aria-label={l("Main options", "मुख्य पर्याय")} className="grid min-h-[calc(100dvh-7rem)] grid-cols-2 auto-rows-fr gap-3">
+    <nav aria-label={l("Main options", "मुख्य पर्याय")} className="grid min-h-[calc(100dvh-7rem)] grid-cols-2 grid-rows-[auto_1fr_1fr_auto] gap-3">
       {tiles.map((t) => (
         <Link
           key={t.href}
           href={t.href}
-          className={`relative flex flex-col items-center justify-center gap-3 rounded-3xl border border-line bg-white p-4 text-center shadow-sm active:scale-[0.98] ${
-            t.span || ""
+          className={`relative flex items-center gap-3 rounded-3xl border border-line bg-white p-4 shadow-sm active:scale-[0.98] ${
+            t.wide ? "col-span-2 flex-row justify-start px-5" : "flex-col justify-center text-center"
           }`}
         >
-          <span className={`grid size-20 place-items-center rounded-full ${t.tone}`}>{t.icon}</span>
+          <span className={`grid shrink-0 place-items-center rounded-full ${t.wide ? "size-16" : "size-20"} ${t.tone}`}>{t.icon}</span>
           <span className="text-xl font-bold leading-tight text-ink">{t.label}</span>
           {!!t.badge && (
             <span
