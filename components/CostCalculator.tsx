@@ -5,6 +5,7 @@ import { useStore } from "@/lib/store";
 import type { Text } from "@/lib/i18n";
 import type { CostInputs } from "@/lib/types";
 import { Button, Card, Field, cx, inputCls, rupees } from "./ui";
+import { Input, TextArea } from "./voice";
 
 const ROWS: { key: keyof CostInputs; en: string; mr: string }[] = [
   { key: "rawMaterial", en: "Raw material", mr: "कच्चा माल" },
@@ -40,14 +41,14 @@ export default function CostCalculator({ initial, product, guideId }: { initial:
       <p className="text-sm text-muted">{l("Enter your own numbers. Sample values are only a starting point.", "तुमचे स्वतःचे आकडे टाका. दिलेले आकडे फक्त सुरुवातीसाठी आहेत.")}</p>
       <div className="mt-3 space-y-3">
         <Field label={l("Product name", "उत्पादनाचे नाव")}>
-          <input className={inputCls} value={shownName} onChange={(e) => setName(e.target.value)} />
+          <Input className={inputCls} value={shownName} onChange={(e) => setName(e.target.value)} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={l("Units made", "किती नग बनवले")}>
-            <input inputMode="numeric" className={inputCls} value={v.units || ""} onChange={set("units")} />
+            <Input inputMode="numeric" className={inputCls} value={v.units || ""} onChange={set("units")} />
           </Field>
           <Field label={l("Selling price / unit (₹)", "प्रति नग विक्री किंमत (₹)")}>
-            <input inputMode="numeric" className={inputCls} value={v.sellingPrice || ""} onChange={set("sellingPrice")} />
+            <Input inputMode="numeric" className={inputCls} value={v.sellingPrice || ""} onChange={set("sellingPrice")} />
           </Field>
         </div>
         {ROWS.map((row) => (
@@ -57,7 +58,7 @@ export default function CostCalculator({ initial, product, guideId }: { initial:
             </label>
             <div className="relative w-32">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">₹</span>
-              <input id={row.key} inputMode="numeric" className={cx(inputCls, "pl-7 text-right")} value={v[row.key] || ""} onChange={set(row.key)} />
+              <Input id={row.key} inputMode="numeric" className={cx(inputCls, "pl-7 text-right")} value={v[row.key] || ""} onChange={set(row.key)} />
             </div>
           </div>
         ))}
@@ -97,7 +98,7 @@ export default function CostCalculator({ initial, product, guideId }: { initial:
 
       <div className="mt-4">
         <Field label={l("Notes (optional)", "टिपा (ऐच्छिक)")}>
-          <textarea className={cx(inputCls, "min-h-20 py-2")} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <TextArea className={cx(inputCls, "min-h-20 py-2")} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
       </div>
       <Button

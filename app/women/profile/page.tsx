@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { keepText } from "@/lib/i18n";
 import { Button, Field, PageHeader, cx, inputCls } from "@/components/ui";
+import { Input, TextArea } from "@/components/voice";
 
 type ProductRow = { name: string; unit: string; price: number };
 
@@ -53,21 +54,21 @@ export default function EnterpriseProfile() {
       />
       <div className="space-y-4">
         <Field label={l("Enterprise / brand name", "उद्योग / ब्रँडचे नाव")}>
-          <input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={l("e.g. Sunita Foods", "उदा. सुनीता फूड्स")} />
+          <Input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={l("e.g. Sunita Foods", "उदा. सुनीता फूड्स")} />
         </Field>
         <Field label={l("SHG or group name", "बचत गट / गटाचे नाव")}>
-          <input className={inputCls} value={f.group} onChange={(e) => setF({ ...f, group: e.target.value })} />
+          <Input className={inputCls} value={f.group} onChange={(e) => setF({ ...f, group: e.target.value })} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={l("Members", "सदस्य संख्या")}>
-            <input inputMode="numeric" className={inputCls} value={f.members} onChange={(e) => setF({ ...f, members: e.target.value })} />
+            <Input inputMode="numeric" className={inputCls} value={f.members} onChange={(e) => setF({ ...f, members: e.target.value })} />
           </Field>
           <Field label={l("Village", "गाव")}>
-            <input className={inputCls} value={f.village} onChange={(e) => setF({ ...f, village: e.target.value })} />
+            <Input className={inputCls} value={f.village} onChange={(e) => setF({ ...f, village: e.target.value })} />
           </Field>
         </div>
         <Field label={l("About your enterprise", "तुमच्या उद्योगाबद्दल")} hint={l("What you make and what kind of buyers you want.", "तुम्ही काय बनवता आणि कोणते खरेदीदार हवे आहेत.")}>
-          <textarea className={cx(inputCls, "min-h-24 py-2")} value={f.story} onChange={(e) => setF({ ...f, story: e.target.value })} />
+          <TextArea className={cx(inputCls, "min-h-24 py-2")} value={f.story} onChange={(e) => setF({ ...f, story: e.target.value })} />
         </Field>
 
         <fieldset>
@@ -76,7 +77,7 @@ export default function EnterpriseProfile() {
             {products.map((p, i) => (
               <div key={i} className="rounded-xl border border-line bg-white p-3">
                 <div className="flex gap-2">
-                  <input aria-label={l("Product name", "उत्पादनाचे नाव")} className={cx(inputCls, "flex-1")} placeholder={l("Product", "उत्पादन")} value={p.name} onChange={(e) => setP(i, { name: e.target.value })} />
+                  <Input aria-label={l("Product name", "उत्पादनाचे नाव")} className={cx(inputCls, "flex-1")} placeholder={l("Product", "उत्पादन")} value={p.name} onChange={(e) => setP(i, { name: e.target.value })} />
                   {products.length > 1 && (
                     <button onClick={() => setProducts(products.filter((_, j) => j !== i))} className="grid size-12 place-items-center text-soil" aria-label={l("Remove product", "उत्पादन काढा")}>
                       <Trash2 size={18} />
@@ -84,8 +85,8 @@ export default function EnterpriseProfile() {
                   )}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  <input aria-label={l("Pack size", "पॅकचा आकार")} className={inputCls} placeholder={l("Pack, e.g. 500 g jar", "पॅक, उदा. 500 ग्रॅम बरणी")} value={p.unit} onChange={(e) => setP(i, { unit: e.target.value })} />
-                  <input aria-label={l("Price", "किंमत")} inputMode="numeric" className={inputCls} placeholder={l("Price ₹", "किंमत ₹")} value={p.price || ""} onChange={(e) => setP(i, { price: Number(e.target.value) || 0 })} />
+                  <Input aria-label={l("Pack size", "पॅकचा आकार")} className={inputCls} placeholder={l("Pack, e.g. 500 g jar", "पॅक, उदा. 500 ग्रॅम बरणी")} value={p.unit} onChange={(e) => setP(i, { unit: e.target.value })} />
+                  <Input aria-label={l("Price", "किंमत")} inputMode="numeric" className={inputCls} placeholder={l("Price ₹", "किंमत ₹")} value={p.price || ""} onChange={(e) => setP(i, { price: Number(e.target.value) || 0 })} />
                 </div>
               </div>
             ))}

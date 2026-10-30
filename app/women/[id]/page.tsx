@@ -6,6 +6,7 @@ import { Lock, Store } from "lucide-react";
 import { buyerById, useStore } from "@/lib/store";
 import { CURRENT_BUYER_ID } from "@/lib/data";
 import { Button, Card, Empty, Field, PageHeader, cx, inputCls, rupees } from "@/components/ui";
+import { Input, TextArea } from "@/components/voice";
 
 export default function EnterpriseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -63,10 +64,10 @@ export default function EnterpriseDetail() {
           ) : (
             <div className="space-y-3">
               <Field label={l("Your business name", "तुमच्या व्यवसायाचे नाव")}>
-                <input className={inputCls} value={shownFrom} onChange={(ev) => setFrom(ev.target.value)} />
+                <Input className={inputCls} value={shownFrom} onChange={(ev) => setFrom(ev.target.value)} />
               </Field>
               <Field label={l("Message", "संदेश")} hint={l("Quantity, how often, and delivery location.", "प्रमाण, किती वेळा आणि कुठे पोहोचवायचे.")}>
-                <textarea
+                <TextArea
                   className={cx(inputCls, "min-h-24 py-2")}
                   value={msg}
                   onChange={(ev) => setMsg(ev.target.value)}

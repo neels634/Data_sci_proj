@@ -6,6 +6,7 @@ import { ChevronRight, PackageSearch, Users } from "lucide-react";
 import { buyerById, lotQuantity, useStore } from "@/lib/store";
 import { CROPS, CURRENT_BUYER_ID } from "@/lib/data";
 import { Badge, Button, Card, Empty, Note, PageHeader, inputCls } from "@/components/ui";
+import { Input } from "@/components/voice";
 
 export default function BuyerBrowse() {
   const { state, account, l, tx, lbl, date, toast } = useStore();
@@ -43,7 +44,7 @@ export default function BuyerBrowse() {
             </option>
           ))}
         </select>
-        <input className={inputCls} inputMode="numeric" placeholder={l("Min qtl", "किमान क्विं.")} value={minQty} onChange={(e) => setMinQty(e.target.value)} aria-label={l("Minimum quantity", "किमान प्रमाण")} />
+        <Input className={inputCls} inputMode="numeric" placeholder={l("Min qtl", "किमान क्विं.")} value={minQty} onChange={(e) => setMinQty(e.target.value)} aria-label={l("Minimum quantity", "किमान प्रमाण")} />
       </div>
 
       <h2 className="mb-2 mt-5 flex items-center gap-2 text-lg font-bold">

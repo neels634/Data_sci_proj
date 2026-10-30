@@ -7,6 +7,7 @@ import { lotQuantity, useStore } from "@/lib/store";
 import { bi } from "@/lib/i18n";
 import { CURRENT_BUYER_ID } from "@/lib/data";
 import { Badge, Button, Card, Empty, Field, Note, PageHeader, cx, inputCls, rupees, statusTone } from "@/components/ui";
+import { Input, TextArea } from "@/components/voice";
 
 const DEFAULT_TERMS = bi("Pickup at village collection point; payment within 3 days of weighing", "गावातील संकलन केंद्रावरून उचल; वजनानंतर 3 दिवसांत पेमेंट");
 
@@ -88,14 +89,14 @@ export default function BuyerLot() {
           <p className="font-bold">{l("Make an offer", "ऑफर द्या")}</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label={l("Price / quintal (₹)", "किंमत / क्विंटल (₹)")} error={errors.price}>
-              <input inputMode="numeric" className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} />
+              <Input inputMode="numeric" className={inputCls} value={price} onChange={(e) => setPrice(e.target.value)} />
             </Field>
             <Field label={l("Quantity (qtl)", "प्रमाण (क्विंटल)")} error={errors.qty}>
-              <input inputMode="numeric" className={inputCls} value={qty} onChange={(e) => setQty(e.target.value)} />
+              <Input inputMode="numeric" className={inputCls} value={qty} onChange={(e) => setQty(e.target.value)} />
             </Field>
           </div>
           <Field label={l("Pickup & payment terms", "माल उचलणे व पेमेंट अटी")} error={errors.terms}>
-            <textarea className={cx(inputCls, "min-h-20 py-2")} value={shownTerms} onChange={(e) => setTerms(e.target.value)} />
+            <TextArea className={cx(inputCls, "min-h-20 py-2")} value={shownTerms} onChange={(e) => setTerms(e.target.value)} />
           </Field>
           <Note>
             {l(

@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, ShieldCheck } from "lucide-react";
+import { Mic, Phone, ShieldCheck } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { CURRENT_MITRA } from "@/lib/data";
 import { bi } from "@/lib/i18n";
@@ -44,6 +44,19 @@ export default function Help() {
           <Phone size={18} /> {l("Call", "फोन")}
         </Button>
       </Card>
+
+      <div className="mt-4 flex gap-3 rounded-2xl bg-leaf-50 p-4 text-leaf-900">
+        <Mic className="shrink-0" />
+        <div className="text-[15px]">
+          <p className="font-bold">{l("Speak instead of typing", "टाइप करण्याऐवजी बोला")}</p>
+          <p>
+            {l(
+              "Tap the green mic in any box, speak, and your words are written for you. It listens in the language you chose (Marathi or English). Allow the microphone when your phone asks. Works best in Chrome with internet.",
+              "कोणत्याही चौकटीतील हिरवा माइक दाबा आणि बोला — तुमचे शब्द आपोआप लिहिले जातील. तुम्ही निवडलेल्या भाषेत (मराठी किंवा इंग्रजी) ऐकते. फोनने विचारल्यास मायक्रोफोनला परवानगी द्या. Chrome मध्ये इंटरनेटसह उत्तम चालते.",
+            )}
+          </p>
+        </div>
+      </div>
 
       <div className="mt-4 flex gap-3 rounded-2xl bg-soil-100 p-4 text-[#7a3519]">
         <ShieldCheck className="shrink-0" />

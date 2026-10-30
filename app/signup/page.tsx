@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, BarChart3, Check, Pencil, ShoppingBasket, Truck, Wheat } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Check, Mic, Pencil, ShoppingBasket, Truck, Wheat } from "lucide-react";
 import { useStore } from "@/lib/store";
 import {
   AGE_GROUPS,
@@ -31,6 +31,7 @@ import type { Role } from "@/lib/types";
 import Chips from "@/components/Chips";
 import { ROLE_HOME } from "@/components/AppShell";
 import { Button, Card, Field, cx, inputCls } from "@/components/ui";
+import { Input } from "@/components/voice";
 
 type Draft = ReturnType<typeof emptyAccount>;
 type StepId = "role" | "about" | "place" | "details" | "contact" | "review";
@@ -202,6 +203,11 @@ export default function SignUp() {
 
       <h1 className="mt-5 text-2xl font-bold leading-tight">{titles[id][0]}</h1>
       <p className="mt-1 text-[15px] text-muted">{titles[id][1]}</p>
+      {id !== "review" && (
+        <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-leaf-50 px-3 py-2 text-sm text-leaf-900">
+          <Mic size={16} className="shrink-0" /> {l("Tap the mic in any box to speak instead of typing.", "टाइप करण्याऐवजी बोलण्यासाठी चौकटीतील माइक दाबा.")}
+        </p>
+      )}
 
       <div className="mt-5 space-y-5">
         {id === "role" && (
@@ -209,7 +215,7 @@ export default function SignUp() {
             <Field label={l("Mobile number", "मोबाईल नंबर")} error={errors.mobile} hint={l("You will log in with this number.", "या नंबरने तुम्ही लॉग इन कराल.")}>
               <div className="flex">
                 <span className="grid min-h-12 place-items-center rounded-l-xl border border-r-0 border-line bg-sand px-3 font-semibold text-muted">+91</span>
-                <input
+                <Input
                   inputMode="numeric"
                   maxLength={10}
                   className={cx(inputCls, "rounded-l-none text-lg tracking-wider")}
@@ -248,13 +254,13 @@ export default function SignUp() {
         {id === "about" && (
           <>
             <Field label={l("Full name", "पूर्ण नाव")} error={errors.name}>
-              <input className={inputCls} autoComplete="name" value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={l("e.g. Sunita Pawar", "उदा. सुनीता पवार")} />
+              <Input className={inputCls} autoComplete="name" value={d.name} onChange={(e) => set("name", e.target.value)} placeholder={l("e.g. Sunita Pawar", "उदा. सुनीता पवार")} />
             </Field>
             <Chips label={l("Gender", "लिंग")} options={GENDERS} value={d.gender} onChange={(v) => set("gender", v)} error={errors.gender} />
             <Chips label={l("Age", "वय")} options={AGE_GROUPS} value={d.ageGroup} onChange={(v) => set("ageGroup", v)} error={errors.ageGroup} />
             <Chips label={l("Education", "शिक्षण")} options={EDUCATION} value={d.education} onChange={(v) => set("education", v)} error={errors.education} />
             <Field label={l("Another phone number (optional)", "दुसरा फोन नंबर (ऐच्छिक)")} error={errors.altMobile} hint={l("A family member we can call if we can’t reach you.", "तुमच्याशी संपर्क न झाल्यास घरातील व्यक्तीचा नंबर.")}>
-              <input inputMode="numeric" maxLength={10} className={inputCls} value={d.altMobile} onChange={(e) => set("altMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} />
+              <Input inputMode="numeric" maxLength={10} className={inputCls} value={d.altMobile} onChange={(e) => set("altMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} />
             </Field>
           </>
         )}
@@ -275,13 +281,13 @@ export default function SignUp() {
               </select>
             </Field>
             <Field label={l("Taluka", "तालुका")} error={errors.taluka}>
-              <input className={inputCls} value={d.taluka} onChange={(e) => set("taluka", e.target.value)} />
+              <Input className={inputCls} value={d.taluka} onChange={(e) => set("taluka", e.target.value)} />
             </Field>
             <Field label={l("Village / town", "गाव / शहर")} error={errors.village}>
-              <input className={inputCls} value={d.village} onChange={(e) => set("village", e.target.value)} />
+              <Input className={inputCls} value={d.village} onChange={(e) => set("village", e.target.value)} />
             </Field>
             <Field label={l("PIN code", "पिन कोड")} error={errors.pincode}>
-              <input inputMode="numeric" maxLength={6} className={inputCls} value={d.pincode} onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} />
+              <Input inputMode="numeric" maxLength={6} className={inputCls} value={d.pincode} onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} />
             </Field>
           </>
         )}
@@ -290,10 +296,10 @@ export default function SignUp() {
           <>
             <div className="grid grid-cols-2 gap-3">
               <Field label={l("Land you own (acres)", "स्वतःची जमीन (एकर)")} error={errors.landOwnedAcres}>
-                <input inputMode="decimal" className={inputCls} value={d.landOwnedAcres} onChange={(e) => set("landOwnedAcres", e.target.value)} placeholder="0" />
+                <Input inputMode="decimal" className={inputCls} value={d.landOwnedAcres} onChange={(e) => set("landOwnedAcres", e.target.value)} placeholder="0" />
               </Field>
               <Field label={l("Leased land (acres)", "भाड्याची जमीन (एकर)")} error={errors.landLeasedAcres}>
-                <input inputMode="decimal" className={inputCls} value={d.landLeasedAcres} onChange={(e) => set("landLeasedAcres", e.target.value)} placeholder="0" />
+                <Input inputMode="decimal" className={inputCls} value={d.landLeasedAcres} onChange={(e) => set("landLeasedAcres", e.target.value)} placeholder="0" />
               </Field>
             </div>
             <Chips multi label={l("Water for your farm", "शेतीसाठी पाणी")} options={IRRIGATION} value={d.irrigation} onChange={(v) => set("irrigation", v)} error={errors.irrigation} />
@@ -307,7 +313,7 @@ export default function SignUp() {
               </label>
               {d.shgMember && (
                 <Field label={l("SHG name", "बचत गटाचे नाव")} error={errors.shgName}>
-                  <input className={inputCls} value={d.shgName} onChange={(e) => set("shgName", e.target.value)} />
+                  <Input className={inputCls} value={d.shgName} onChange={(e) => set("shgName", e.target.value)} />
                 </Field>
               )}
               <label className="flex min-h-11 items-center gap-3">
@@ -316,7 +322,7 @@ export default function SignUp() {
               </label>
               {d.fpoMember && (
                 <Field label={l("FPO / cooperative name", "कंपनी / संस्थेचे नाव")} error={errors.fpoName}>
-                  <input className={inputCls} value={d.fpoName} onChange={(e) => set("fpoName", e.target.value)} />
+                  <Input className={inputCls} value={d.fpoName} onChange={(e) => set("fpoName", e.target.value)} />
                 </Field>
               )}
             </Card>
@@ -329,10 +335,10 @@ export default function SignUp() {
           <>
             <div className="grid grid-cols-2 gap-3">
               <Field label={l("Years of experience", "अनुभव (वर्षे)")} error={errors.experienceYears}>
-                <input inputMode="numeric" className={inputCls} value={d.experienceYears} onChange={(e) => set("experienceYears", e.target.value)} />
+                <Input inputMode="numeric" className={inputCls} value={d.experienceYears} onChange={(e) => set("experienceYears", e.target.value)} />
               </Field>
               <Field label={l("Villages you can serve", "किती गावांत काम कराल")} error={errors.villagesServed}>
-                <input inputMode="numeric" className={inputCls} value={d.villagesServed} onChange={(e) => set("villagesServed", e.target.value)} />
+                <Input inputMode="numeric" className={inputCls} value={d.villagesServed} onChange={(e) => set("villagesServed", e.target.value)} />
               </Field>
             </div>
             <Chips multi label={l("Transport you can arrange", "तुम्ही करू शकणारी वाहतूक")} options={VEHICLES} value={d.vehicle} onChange={(v) => set("vehicle", v)} error={errors.vehicle} />
@@ -346,15 +352,15 @@ export default function SignUp() {
         {id === "details" && d.role === "buyer" && (
           <>
             <Field label={l("Business name", "व्यवसायाचे नाव")} error={errors.businessName}>
-              <input className={inputCls} value={d.businessName} onChange={(e) => set("businessName", e.target.value)} />
+              <Input className={inputCls} value={d.businessName} onChange={(e) => set("businessName", e.target.value)} />
             </Field>
             <Chips label={l("Type of business", "व्यवसायाचा प्रकार")} options={BUSINESS_TYPES} value={d.businessType} onChange={(v) => set("businessType", v)} error={errors.businessType} />
             <Field label={l("GSTIN (optional)", "GSTIN (ऐच्छिक)")} error={errors.gstin} hint={l("Helps us verify your business later.", "नंतर तुमच्या व्यवसायाची पडताळणी करण्यास मदत होते.")}>
-              <input className={cx(inputCls, "uppercase")} maxLength={15} value={d.gstin} onChange={(e) => set("gstin", e.target.value.toUpperCase())} />
+              <Input className={cx(inputCls, "uppercase")} maxLength={15} value={d.gstin} onChange={(e) => set("gstin", e.target.value.toUpperCase())} />
             </Field>
             <Chips multi label={l("What do you buy?", "तुम्ही काय खरेदी करता?")} options={CROP_OPTIONS} value={d.commodities} onChange={(v) => set("commodities", v)} error={errors.commodities} />
             <Field label={l("How much per month? (quintals)", "दरमहा किती? (क्विंटल)")} error={errors.monthlyVolumeQtl}>
-              <input inputMode="numeric" className={inputCls} value={d.monthlyVolumeQtl} onChange={(e) => set("monthlyVolumeQtl", e.target.value)} />
+              <Input inputMode="numeric" className={inputCls} value={d.monthlyVolumeQtl} onChange={(e) => set("monthlyVolumeQtl", e.target.value)} />
             </Field>
           </>
         )}
@@ -362,10 +368,10 @@ export default function SignUp() {
         {id === "details" && d.role === "admin" && (
           <>
             <Field label={l("Organisation", "संस्था")} error={errors.organisation}>
-              <input className={inputCls} value={d.organisation} onChange={(e) => set("organisation", e.target.value)} />
+              <Input className={inputCls} value={d.organisation} onChange={(e) => set("organisation", e.target.value)} />
             </Field>
             <Field label={l("Designation", "पद")} error={errors.designation}>
-              <input className={inputCls} value={d.designation} onChange={(e) => set("designation", e.target.value)} />
+              <Input className={inputCls} value={d.designation} onChange={(e) => set("designation", e.target.value)} />
             </Field>
           </>
         )}

@@ -6,6 +6,7 @@ import { Bookmark, ChevronRight, Search, SearchX } from "lucide-react";
 import { matchSchemes, useStore } from "@/lib/store";
 import type { SchemeCategory } from "@/lib/types";
 import { Badge, Card, Empty, PageHeader, cx, inputCls, statusTone } from "@/components/ui";
+import { Input } from "@/components/voice";
 
 const CATS: ("All" | SchemeCategory)[] = ["All", "Income support", "Crop insurance", "Credit", "Irrigation", "Women & SHG", "Food processing"];
 
@@ -30,7 +31,7 @@ export default function Schemes() {
       <PageHeader back="/home" title={l("Schemes", "योजना")} sub={l("Central and Maharashtra schemes, with the official source for each.", "केंद्र व महाराष्ट्र शासनाच्या योजना, प्रत्येकीच्या अधिकृत स्रोतासह.")} />
       <div className="relative">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-        <input className={cx(inputCls, "pl-10")} placeholder={l("Search schemes", "योजना शोधा")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={l("Search schemes", "योजना शोधा")} />
+        <Input className={cx(inputCls, "pl-10")} placeholder={l("Search schemes", "योजना शोधा")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={l("Search schemes", "योजना शोधा")} />
       </div>
 
       <div className="mt-3 grid grid-cols-3 rounded-xl bg-sand p-1" role="tablist">

@@ -8,6 +8,7 @@ import { keepText } from "@/lib/i18n";
 import { CROPS, MITRA_FEE_PER_QUINTAL, TRANSPORT_SHARE_PER_QUINTAL } from "@/lib/data";
 import type { Listing } from "@/lib/types";
 import { Button, Field, Note, PageHeader, Term, cx, inputCls } from "@/components/ui";
+import { Input } from "@/components/voice";
 
 export default function NewListing() {
   const { state, l, tx, lbl, addListing, toast } = useStore();
@@ -70,7 +71,7 @@ export default function NewListing() {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label={l("Quantity (quintal)", "प्रमाण (क्विंटल)")} error={errors.quantity} hint={l("1 quintal = 100 kg", "1 क्विंटल = 100 किलो")}>
-            <input inputMode="decimal" className={inputCls} value={f.quantity} onChange={(e) => setF({ ...f, quantity: e.target.value })} placeholder={l("e.g. 10", "उदा. 10")} />
+            <Input inputMode="decimal" className={inputCls} value={f.quantity} onChange={(e) => setF({ ...f, quantity: e.target.value })} placeholder={l("e.g. 10", "उदा. 10")} />
           </Field>
           <Field label={l("Grade", "श्रेणी")}>
             <select className={inputCls} value={f.grade} onChange={(e) => setF({ ...f, grade: e.target.value as Listing["grade"] })}>
@@ -98,11 +99,11 @@ export default function NewListing() {
           error={errors.expectedPrice}
           hint={l("Only a guide for buyers — not a fixed price.", "खरेदीदारांसाठी फक्त अंदाज — ठरलेली किंमत नाही.")}
         >
-          <input inputMode="numeric" className={inputCls} value={f.expectedPrice} onChange={(e) => setF({ ...f, expectedPrice: e.target.value })} placeholder="₹" />
+          <Input inputMode="numeric" className={inputCls} value={f.expectedPrice} onChange={(e) => setF({ ...f, expectedPrice: e.target.value })} placeholder="₹" />
         </Field>
 
         <Field label={l("Pickup village", "माल उचलण्याचे गाव")}>
-          <input className={inputCls} value={f.village} onChange={(e) => setF({ ...f, village: e.target.value })} />
+          <Input className={inputCls} value={f.village} onChange={(e) => setF({ ...f, village: e.target.value })} />
         </Field>
 
         <button

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
+import { ArrowRight, Lock, Mic, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { hashPin, type Account } from "@/lib/account";
 import { ROLE_HOME } from "@/components/AppShell";
 import { Button, cx, inputCls } from "@/components/ui";
+import { Input } from "@/components/voice";
 
 const MAX_TRIES = 5;
 
@@ -101,13 +102,16 @@ export default function Login() {
           <form onSubmit={checkMobile} noValidate>
             <h1 className="text-xl font-bold">{l("Log in", "लॉग इन करा")}</h1>
             <p className="text-sm text-muted">{l("Use the mobile number you registered with.", "नोंदणी केलेला मोबाईल नंबर वापरा.")}</p>
+            <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-leaf-50 px-3 py-2 text-sm text-leaf-900">
+              <Mic size={16} className="shrink-0" /> {l("Can’t type? Tap the mic in any box and speak.", "टाइप करता येत नाही? कोणत्याही चौकटीतील माइक दाबा आणि बोला.")}
+            </p>
             <label className="mt-4 block">
               <span className="mb-1 flex items-center gap-1.5 text-[15px] font-semibold">
                 <Phone size={16} /> {l("Mobile number", "मोबाईल नंबर")}
               </span>
               <div className="flex">
                 <span className="grid min-h-14 place-items-center rounded-l-xl border border-r-0 border-line bg-sand px-3 text-lg font-semibold text-muted">+91</span>
-                <input
+                <Input
                   inputMode="numeric"
                   autoComplete="tel-national"
                   maxLength={10}
