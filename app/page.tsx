@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
+import { ArrowRight, Lock, Mic, Phone, ScanEye, ShieldCheck, Sprout, UserPlus } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { hashPin, type Account } from "@/lib/account";
 import { ROLE_HOME } from "@/components/AppShell";
@@ -139,6 +139,16 @@ export default function Login() {
             <Button full type="submit" className="mt-4 min-h-14 text-lg">
               {l("Continue", "पुढे चला")} <ArrowRight size={20} />
             </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobile("9876500001");
+                setErr("");
+              }}
+              className="mt-2 block w-full text-center text-xs font-semibold text-leaf-700 hover:underline"
+            >
+              {l("⚡ Quick Demo: Use Sunita Pawar (Farmer)", "⚡ डेमो: सुनिता पवार (शेतकरी) वापरा")}
+            </button>
           </form>
         ) : (
           <form onSubmit={checkPin} noValidate>
@@ -181,6 +191,16 @@ export default function Login() {
             </Button>
             <button
               type="button"
+              onClick={() => {
+                setPin("1234");
+                setErr("");
+              }}
+              className="mt-2 block w-full text-center text-xs font-semibold text-leaf-700 hover:underline"
+            >
+              {l("⚡ Quick Demo PIN: 1234", "⚡ डेमो PIN: 1234 वापरा")}
+            </button>
+            <button
+              type="button"
               onClick={() => toast({ en: "Ask your Mandi Mitra or field coordinator to reset your PIN.", mr: "PIN बदलण्यासाठी तुमच्या मंडी मित्राला किंवा समन्वयकाला विचारा." })}
               className="mt-2 min-h-11 w-full text-sm font-semibold text-leaf-700"
             >
@@ -190,22 +210,33 @@ export default function Login() {
         )}
       </div>
 
-      <div className="mt-6 text-center">
+      <div className="mt-6 flex flex-col gap-3">
         <Link
           href="/crop-check"
-          className="mb-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 text-lg font-bold text-white shadow hover:bg-emerald-800"
+          className="flex items-center justify-between rounded-2xl border border-leaf-700/30 bg-leaf-50 p-4 text-left transition hover:bg-leaf-100/60 shadow-sm"
         >
-          🌿 {l("Open Crop Check (No login needed)", "पीक तपासणी (लॉगिन न करता वापरा)")}
+          <div className="flex items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-xl bg-leaf-700 text-white shadow-sm">
+              <ScanEye size={24} />
+            </span>
+            <div>
+              <p className="text-base font-bold text-leaf-950">{l("Crop Check", "पीक तपासणी")}</p>
+              <p className="text-xs text-leaf-800">{l("AI photo diagnosis for leaf diseases & pests", "रोगांचे AI फोटो निदान आणि खात्रीशीर उपाय")}</p>
+            </div>
+          </div>
+          <ArrowRight size={18} className="text-leaf-700 shrink-0" />
         </Link>
 
-        <p className="text-sm text-muted">{l("New to Shet Samruddhi?", "शेत समृद्धीवर नवीन आहात?")}</p>
-        <Link
-          href="/signup"
-          className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-leaf-700 bg-white text-lg font-semibold text-leaf-700"
-        >
-          <UserPlus size={20} /> {l("Create a new account", "नवीन खाते तयार करा")}
-        </Link>
-        <p className="mt-2 text-xs text-muted">{l("Takes about 3 minutes. Your Mandi Mitra can help you fill it.", "साधारण 3 मिनिटे लागतात. तुमचा मंडी मित्र भरण्यास मदत करू शकतो.")}</p>
+        <div className="pt-2 text-center">
+          <p className="text-sm text-muted">{l("New to Shet Samruddhi?", "शेत समृद्धीवर नवीन आहात?")}</p>
+          <Link
+            href="/signup"
+            className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-leaf-700 bg-white text-lg font-semibold text-leaf-700"
+          >
+            <UserPlus size={20} /> {l("Create a new account", "नवीन खाते तयार करा")}
+          </Link>
+          <p className="mt-2 text-xs text-muted">{l("Takes about 3 minutes. Your Mandi Mitra can help you fill it.", "साधारण 3 मिनिटे लागतात. तुमचा मंडी मित्र भरण्यास मदत करू शकतो.")}</p>
+        </div>
       </div>
 
       <p className="mt-8 flex items-start gap-2 text-xs text-muted">

@@ -22,7 +22,6 @@ import {
   Sprout,
   Store,
   UserRound,
-  Users,
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -36,12 +35,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
-  const isWelcome = pathname === "/" || pathname === "/signup" || pathname === "/crop-check";
-  const blocked = hydrated && !account && !isWelcome;
+  const isWelcome = pathname === "/" || pathname === "/signup";
+  const isPublic = isWelcome || pathname === "/crop-check";
+  const blocked = hydrated && !account && !isPublic;
   // the farmer home is only the four big options, so the bottom bar would just repeat them
   const showNav = !isWelcome && pathname !== "/home";
 
-  // every screen except log in / sign up needs a signed-in account
+  // every screen except log in / sign up / public tools needs a signed-in account
   useEffect(() => {
     if (blocked) router.replace("/");
   }, [blocked, router]);
@@ -133,7 +133,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
       )}
 
-      <main className={cx("flex-1 px-4", isWelcome ? "py-4" : showNav ? "pb-28 pt-4" : "pb-4 pt-4")}>
+      <main className={cx("flex-1 px-4", isWelcome ? "py-0" : showNav ? "pb-28 pt-4" : "pb-4 pt-4")}>
         {!blocked ? children : null}
       </main>
 
