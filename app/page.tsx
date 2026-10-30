@@ -1,103 +1,209 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Lock, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
+import { useStore } from "@/lib/store";
+import { hashPin, type Account } from "@/lib/account";
+import { ROLE_HOME } from "@/components/AppShell";
+import { Button, cx, inputCls } from "@/components/ui";
+
+const MAX_TRIES = 5;
+
+export default function Login() {
+  const { state, account, l, setLang, login, toast } = useStore();
+  const router = useRouter();
+  const [step, setStep] = useState<"mobile" | "pin">("mobile");
+  const [mobile, setMobile] = useState("");
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const [found, setFound] = useState<Account | null>(null);
+  const [tries, setTries] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const pinRef = useRef<HTMLInputElement>(null);
+
+  // already signed in → straight to the right home
+  useEffect(() => {
+    if (account) router.replace(ROLE_HOME[account.role]);
+  }, [account, router]);
+
+  useEffect(() => {
+    if (step === "pin") pinRef.current?.focus();
+  }, [step]);
+
+  const checkMobile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^[6-9]\d{9}$/.test(mobile)) return setErr(l("Enter a valid 10-digit mobile number.", "योग्य 10 अंकी मोबाईल नंबर लिहा."));
+    const a = state.accounts.find((x) => x.mobile === mobile);
+    setErr("");
+    if (!a) {
+      setFound(null);
+      return setErr("none");
+    }
+    setFound(a);
+    setPin("");
+    setStep("pin");
+  };
+
+  const checkPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!found) return;
+    if (Date.now() < lockedUntil) return setErr(l("Too many wrong tries. Please wait 30 seconds.", "खूप वेळा चुकीचा PIN. कृपया 30 सेकंद थांबा."));
+    if (!/^\d{4}$/.test(pin)) return setErr(l("Enter your 4-digit PIN.", "तुमचा 4 अंकी PIN लिहा."));
+    const ok = (await hashPin(found.mobile, pin)) === found.pinHash;
+    if (!ok) {
+      const n = tries + 1;
+      setTries(n);
+      setPin("");
+      if (n >= MAX_TRIES) {
+        setLockedUntil(Date.now() + 30_000);
+        setTries(0);
+        return setErr(l("Too many wrong tries. Please wait 30 seconds.", "खूप वेळा चुकीचा PIN. कृपया 30 सेकंद थांबा."));
+      }
+      return setErr(l(`Wrong PIN. ${MAX_TRIES - n} tries left.`, `चुकीचा PIN. अजून ${MAX_TRIES - n} प्रयत्न बाकी.`));
+    }
+    login(found.id);
+    toast({ en: `Welcome, ${found.name}`, mr: `स्वागत आहे, ${found.name}` });
+    router.push(ROLE_HOME[found.role]);
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="pb-10">
+      <div className="-mx-4 bg-leaf-700 px-6 pb-10 pt-10 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/15">
+              <Sprout size={20} />
+            </span>
+            <p className="text-lg font-bold leading-tight">{l("Shet Samruddhi", "शेत समृद्धी")}</p>
+          </div>
+          <div className="inline-flex shrink-0 rounded-full bg-white/15 p-1" role="group" aria-label={l("Language", "भाषा")}>
+            {(["mr", "en"] as const).map((x) => (
+              <button
+                key={x}
+                onClick={() => setLang(x)}
+                className={cx("min-h-9 rounded-full px-2.5 text-sm font-semibold", state.lang === x ? "bg-white text-leaf-900" : "text-white")}
+              >
+                {x === "mr" ? "मराठी" : "English"}
+              </button>
+            ))}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <p className="mt-6 text-[26px] font-bold leading-tight">{l("Opportunities for your village, in one place", "तुमच्या गावासाठी संधी, एकाच ठिकाणी")}</p>
+        <p className="mt-2 text-white/85">
+          {l("Schemes, buyers, a local Mandi Mitra and business guidance.", "योजना, खरेदीदार, गावातील मंडी मित्र आणि व्यवसाय मार्गदर्शन.")}
+        </p>
+      </div>
+
+      <div className="-mt-5 rounded-3xl border border-line bg-white p-5 shadow-sm">
+        {step === "mobile" ? (
+          <form onSubmit={checkMobile} noValidate>
+            <h1 className="text-xl font-bold">{l("Log in", "लॉग इन करा")}</h1>
+            <p className="text-sm text-muted">{l("Use the mobile number you registered with.", "नोंदणी केलेला मोबाईल नंबर वापरा.")}</p>
+            <label className="mt-4 block">
+              <span className="mb-1 flex items-center gap-1.5 text-[15px] font-semibold">
+                <Phone size={16} /> {l("Mobile number", "मोबाईल नंबर")}
+              </span>
+              <div className="flex">
+                <span className="grid min-h-14 place-items-center rounded-l-xl border border-r-0 border-line bg-sand px-3 text-lg font-semibold text-muted">+91</span>
+                <input
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  maxLength={10}
+                  className={cx(inputCls, "min-h-14 rounded-l-none text-xl tracking-wider")}
+                  value={mobile}
+                  onChange={(e) => {
+                    setMobile(e.target.value.replace(/\D/g, "").slice(0, 10));
+                    setErr("");
+                  }}
+                  placeholder="98765 43210"
+                  aria-label={l("Mobile number", "मोबाईल नंबर")}
+                />
+              </div>
+            </label>
+            {err === "none" ? (
+              <div className="mt-3 rounded-xl bg-gold-100 p-3 text-sm text-[#6b4708]">
+                <p className="font-semibold">{l("No account with this number yet.", "या नंबरवर अजून खाते नाही.")}</p>
+                <Link href={`/signup?m=${mobile}`} className="mt-1 inline-flex items-center gap-1 font-bold text-leaf-700 underline">
+                  {l("Create an account with this number", "या नंबरने खाते तयार करा")} <ArrowRight size={14} />
+                </Link>
+              </div>
+            ) : (
+              err && <p className="mt-2 text-sm font-semibold text-soil">{err}</p>
+            )}
+            <Button full type="submit" className="mt-4 min-h-14 text-lg">
+              {l("Continue", "पुढे चला")} <ArrowRight size={20} />
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={checkPin} noValidate>
+            <h1 className="text-xl font-bold">{l(`Namaskar, ${found?.name}`, `नमस्कार, ${found?.name}`)}</h1>
+            <p className="text-sm text-muted">
+              +91 {mobile.slice(0, 5)} {mobile.slice(5)} ·{" "}
+              <button
+                type="button"
+                className="font-semibold text-leaf-700 underline"
+                onClick={() => {
+                  setStep("mobile");
+                  setErr("");
+                }}
+              >
+                {l("change", "बदला")}
+              </button>
+            </p>
+            <label className="mt-4 block">
+              <span className="mb-1 flex items-center gap-1.5 text-[15px] font-semibold">
+                <Lock size={16} /> {l("Your 4-digit PIN", "तुमचा 4 अंकी PIN")}
+              </span>
+              <input
+                ref={pinRef}
+                type="password"
+                inputMode="numeric"
+                autoComplete="current-password"
+                maxLength={4}
+                className={cx(inputCls, "min-h-14 text-center text-3xl tracking-[0.8em]")}
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+                  setErr("");
+                }}
+                aria-label={l("PIN", "PIN")}
+              />
+            </label>
+            {err && <p className="mt-2 text-sm font-semibold text-soil">{err}</p>}
+            <Button full type="submit" className="mt-4 min-h-14 text-lg">
+              {l("Log in", "लॉग इन करा")}
+            </Button>
+            <button
+              type="button"
+              onClick={() => toast({ en: "Ask your Mandi Mitra or field coordinator to reset your PIN.", mr: "PIN बदलण्यासाठी तुमच्या मंडी मित्राला किंवा समन्वयकाला विचारा." })}
+              className="mt-2 min-h-11 w-full text-sm font-semibold text-leaf-700"
+            >
+              {l("Forgot PIN?", "PIN विसरलात?")}
+            </button>
+          </form>
+        )}
+      </div>
+
+      <div className="mt-6 text-center">
+        <p className="text-sm text-muted">{l("New to Shet Samruddhi?", "शेत समृद्धीवर नवीन आहात?")}</p>
+        <Link
+          href="/signup"
+          className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-leaf-700 bg-white text-lg font-semibold text-leaf-700"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <UserPlus size={20} /> {l("Create a new account", "नवीन खाते तयार करा")}
+        </Link>
+        <p className="mt-2 text-xs text-muted">{l("Takes about 3 minutes. Your Mandi Mitra can help you fill it.", "साधारण 3 मिनिटे लागतात. तुमचा मंडी मित्र भरण्यास मदत करू शकतो.")}</p>
+      </div>
+
+      <p className="mt-8 flex items-start gap-2 text-xs text-muted">
+        <ShieldCheck size={16} className="shrink-0" />
+        {l(
+          "We never ask for OTPs, Aadhaar, bank details or passwords over the phone. Your PIN is known only to you.",
+          "आम्ही फोनवर कधीही OTP, आधार, बँक तपशील किंवा पासवर्ड मागत नाही. तुमचा PIN फक्त तुम्हालाच माहीत असतो.",
+        )}
+      </p>
     </div>
   );
 }
