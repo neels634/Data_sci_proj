@@ -191,6 +191,13 @@ export default function Login() {
       </div>
 
       <div className="mt-6 text-center">
+        <Link
+          href="/crop-check"
+          className="mb-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 text-lg font-bold text-white shadow hover:bg-emerald-800"
+        >
+          🌿 {l("Open Crop Check (No login needed)", "पीक तपासणी (लॉगिन न करता वापरा)")}
+        </Link>
+
         <p className="text-sm text-muted">{l("New to Shet Samruddhi?", "शेत समृद्धीवर नवीन आहात?")}</p>
         <Link
           href="/signup"

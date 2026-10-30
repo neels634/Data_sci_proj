@@ -35,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
-  const isWelcome = pathname === "/" || pathname === "/signup";
+  const isWelcome = pathname === "/" || pathname === "/signup" || pathname === "/crop-check";
   const blocked = hydrated && !account && !isWelcome;
   // the farmer home is only the four big options, so the bottom bar would just repeat them
   const showNav = !isWelcome && pathname !== "/home";
