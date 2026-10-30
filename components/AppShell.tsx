@@ -133,7 +133,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
       )}
 
-      <main className={cx("flex-1 px-4", isWelcome ? "py-0" : showNav ? "pb-28 pt-4" : "pb-4 pt-4")}>{hydrated && !blocked ? children : null}</main>
+      <main className={cx("flex-1 px-4", isWelcome ? "py-4" : showNav ? "pb-28 pt-4" : "pb-4 pt-4")}>
+        {!blocked ? children : null}
+      </main>
 
       {showNav && (
         <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-line bg-white/95 backdrop-blur">
