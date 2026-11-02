@@ -12,8 +12,6 @@ import {
   SEED_FARMER_ACCOUNT,
   seedAccounts,
   seedBuyers,
-  seedEnquiries,
-  seedEnterprises,
   seedGuides,
   seedListings,
   seedLots,
@@ -21,14 +19,17 @@ import {
   seedProfile,
   seedReports,
   seedSchemes,
+  seedFarm,
 } from "./data";
 import { bi, fmtDate, label, tx, type Bi, type Text } from "./i18n";
 import { profileFromAccount, type Account } from "./account";
+import { occurrences, todayISO } from "./lifecycle";
+import { getCrop } from "./crops";
 import type {
   ActivityItem,
   BusinessPlan,
-  Enquiry,
-  Enterprise,
+  FarmActivity,
+  FarmCrop,
   FarmerProfile,
   Lang,
   Listing,
@@ -37,6 +38,7 @@ import type {
   Report,
   Role,
   Scheme,
+  TaskState,
   TrackerStatus,
 } from "./types";
 
@@ -56,13 +58,17 @@ interface AppState {
   lots: Lot[];
   offers: Offer[];
   plans: BusinessPlan[];
-  enterprises: Enterprise[];
-  enquiries: Enquiry[];
   reports: Report[];
   activityBy: Record<string, ActivityItem[]>;
+  /** My Farm: every farmer's crops, their activity log and done/skipped task occurrences */
+  farmCrops: FarmCrop[];
+  farmActivities: FarmActivity[];
+  taskStates: TaskState[];
 }
 
-const initialState = (): AppState => ({
+const initialState = (): AppState => {
+  const farm = seedFarm(todayISO());
+  return {
   role: "farmer",
   lang: "en",
   accounts: seedAccounts,
@@ -75,8 +81,6 @@ const initialState = (): AppState => ({
   lots: seedLots,
   offers: seedOffers,
   plans: [],
-  enterprises: seedEnterprises,
-  enquiries: seedEnquiries,
   reports: seedReports,
   activityBy: {
     [SEED_FARMER_ACCOUNT]: [
@@ -84,13 +88,41 @@ const initialState = (): AppState => ({
     { id: "a2", text: bi("Marked PM-KISAN as Applied", "पीएम-किसान: अर्ज केला"), at: "2026-10-20" },
     ],
   },
-});
+  farmCrops: farm.crops,
+  farmActivities: farm.activities,
+  taskStates: farm.taskStates,
+  };
+};
 
-const STORAGE_KEY = "udyamsetu-state-v4";
+const STORAGE_KEY = "udyamsetu-state-v5";
+const OLD_STORAGE_KEY = "udyamsetu-state-v4";
+/** What survives the v4 → v5 upgrade. Women & SHG data (enterprises, enquiries) is dropped. */
+const V4_KEEP = ["lang", "role", "profile", "accounts", "sessionId", "schemes", "listings", "lots", "offers", "plans", "bookmarksBy", "trackerBy", "reports", "activityBy"] as const;
+
+/** Read saved state; upgrades v4 data once without losing accounts. */
+function loadSaved(): Partial<AppState> | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) return JSON.parse(raw);
+  const old = localStorage.getItem(OLD_STORAGE_KEY);
+  if (!old) return null;
+  const v4 = JSON.parse(old) as Record<string, unknown>;
+  const kept: Record<string, unknown> = { farmCrops: [], farmActivities: [], taskStates: [] };
+  for (const k of V4_KEEP) if (k in v4) kept[k] = v4[k];
+  localStorage.removeItem(OLD_STORAGE_KEY);
+  return kept as Partial<AppState>;
+}
 const today = () => new Date().toISOString().slice(0, 10);
 const uid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 /** key for per-account data */
 const who = (s: AppState) => s.sessionId ?? "guest";
+/** Sowing/transplanting tasks are already done when the farmer records those dates. */
+function closedByDates(c: FarmCrop): TaskState[] {
+  const info = getCrop(c.cropId);
+  if (!info || !c.sowingDate) return [];
+  return occurrences(c, info)
+    .filter((o) => (o.task.type === "sowing" && o.date <= (c.sowingDate as string)) || (o.task.type === "transplanting" && !!c.transplantDate && o.date <= c.transplantDate))
+    .map((o) => ({ farmCropId: c.id, taskKey: o.key, status: "done" as const, at: todayISO() }));
+}
 /** add an entry to the signed-in account's activity */
 const log = (s: AppState, text: Bi): AppState["activityBy"] => ({
   ...s.activityBy,
@@ -107,8 +139,8 @@ function useAppStore() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...initialState(), ...JSON.parse(raw) });
+      const saved = loadSaved();
+      if (saved) setState({ ...initialState(), ...saved });
     } catch {
       /* storage unavailable — keep seed */
     }
@@ -311,20 +343,89 @@ function useAppStore() {
           return { ...s, activityBy: log(s, bi(`Requested support: ${en(topic)}`, `मदतीची विनंती: ${mr(topic)}`)) };
         }),
 
-      saveEnterprise: (e: Omit<Enterprise, "id" | "owner">) =>
+
+      // ---- My Farm: every action checks the crop belongs to the signed-in farmer
+      addFarmCrop: (c: Omit<FarmCrop, "owner" | "createdAt">) =>
         setState((s) => {
-          const existing = s.enterprises.find((x) => x.owner !== null && x.owner === s.sessionId);
-          later(existing ? bi("Profile updated", "प्रोफाइल अद्ययावत केले") : bi("Enterprise profile published", "उद्योग प्रोफाइल प्रसिद्ध केले"));
-          const ent: Enterprise = { ...e, id: existing?.id ?? uid("e"), owner: s.sessionId };
-          return { ...s, enterprises: existing ? s.enterprises.map((x) => (x.id === existing.id ? ent : x)) : [ent, ...s.enterprises] };
+          if (!s.sessionId) return s;
+          const crop: FarmCrop = { ...c, owner: s.sessionId, createdAt: todayISO() };
+          later(bi("Crop added to My Farm", "पीक माझ्या शेतीत जोडले"));
+          const activities: FarmActivity[] =
+            crop.sowingDate && crop.status === "growing"
+              ? [{ id: uid("fa"), farmCropId: crop.id, type: "sowing", date: crop.sowingDate, notes: "", createdAt: new Date().toISOString() }]
+              : [];
+          if (crop.transplantDate && crop.status === "growing")
+            activities.push({ id: uid("fa"), farmCropId: crop.id, type: "transplanting", date: crop.transplantDate, notes: "", createdAt: new Date().toISOString() });
+          return {
+            ...s,
+            farmCrops: [crop, ...s.farmCrops],
+            farmActivities: [...activities, ...s.farmActivities],
+            taskStates: crop.status === "growing" ? [...s.taskStates, ...closedByDates(crop)] : s.taskStates,
+            activityBy: log(s, bi("Added a crop to My Farm", "माझ्या शेतीत पीक जोडले")),
+          };
         }),
-      sendEnquiry: (enterpriseId: string, from: Text, message: string) =>
+      updateFarmCrop: (id: string, patch: Partial<Omit<FarmCrop, "id" | "owner" | "createdAt">>) =>
         setState((s) => {
-          later(bi("Enquiry sent through Shet Samruddhi", "चौकशी शेत समृद्धीमार्फत पाठवली"));
-          return { ...s, enquiries: [{ id: uid("q"), enterpriseId, from, message, status: "New", createdAt: today() }, ...s.enquiries] };
+          if (!s.farmCrops.some((c) => c.id === id && c.owner === s.sessionId)) return s;
+          later(bi("Crop updated", "पीक अद्ययावत केले"));
+          return { ...s, farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, ...patch } : c)) };
         }),
-      setEnquiryStatus: (id: string, status: Enquiry["status"]) =>
-        setState((s) => ({ ...s, enquiries: s.enquiries.map((q) => (q.id === id ? { ...q, status } : q)) })),
+      /** planned → growing, with the sowing recorded in the log */
+      markSown: (id: string, date: string) =>
+        setState((s) => {
+          if (!s.farmCrops.some((c) => c.id === id && c.owner === s.sessionId)) return s;
+          later(bi("Sowing recorded. Your crop calendar has started.", "पेरणीची नोंद झाली. पिकाचे वेळापत्रक सुरू झाले."));
+          const sown = s.farmCrops.find((c) => c.id === id)!;
+          return {
+            ...s,
+            farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, status: "growing", sowingDate: date } : c)),
+            taskStates: [...s.taskStates, ...closedByDates({ ...sown, status: "growing", sowingDate: date })],
+            farmActivities: [{ id: uid("fa"), farmCropId: id, type: "sowing", date, notes: "", createdAt: new Date().toISOString() }, ...s.farmActivities],
+          };
+        }),
+      markHarvested: (id: string, date: string) =>
+        setState((s) => {
+          if (!s.farmCrops.some((c) => c.id === id && c.owner === s.sessionId)) return s;
+          later(bi("Marked as harvested", "काढणी झाल्याची नोंद केली"));
+          return {
+            ...s,
+            farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, status: "harvested", harvestedOn: date } : c)),
+            farmActivities: [{ id: uid("fa"), farmCropId: id, type: "harvest", date, notes: "", createdAt: new Date().toISOString() }, ...s.farmActivities],
+          };
+        }),
+      removeFarmCrop: (id: string) =>
+        setState((s) => {
+          if (!s.farmCrops.some((c) => c.id === id && c.owner === s.sessionId)) return s;
+          later(bi("Crop removed", "पीक काढून टाकले"));
+          return {
+            ...s,
+            farmCrops: s.farmCrops.filter((c) => c.id !== id),
+            farmActivities: s.farmActivities.filter((a) => a.farmCropId !== id),
+            taskStates: s.taskStates.filter((t) => t.farmCropId !== id),
+          };
+        }),
+      /** save a log entry; when it came from a task, that task occurrence is marked done too */
+      logFarmActivity: (a: Omit<FarmActivity, "id" | "createdAt">) =>
+        setState((s) => {
+          if (!s.farmCrops.some((c) => c.id === a.farmCropId && c.owner === s.sessionId)) return s;
+          later(bi("Saved to the activity log", "कामांच्या नोंदीत जतन केले"));
+          const entry: FarmActivity = { ...a, id: uid("fa"), createdAt: new Date().toISOString() };
+          const linked = a.linkedTaskId;
+          const taskStates =
+            linked && !s.taskStates.some((t) => t.farmCropId === a.farmCropId && t.taskKey === linked)
+              ? [...s.taskStates, { farmCropId: a.farmCropId, taskKey: linked, status: "done" as const, at: todayISO() }]
+              : s.taskStates;
+          return { ...s, farmActivities: [entry, ...s.farmActivities], taskStates };
+        }),
+      setTaskState: (farmCropId: string, taskKey: string, status: TaskState["status"]) =>
+        setState((s) => {
+          if (!s.farmCrops.some((c) => c.id === farmCropId && c.owner === s.sessionId)) return s;
+          later(status === "done" ? bi("Task done", "काम झाले") : bi("Task skipped", "काम वगळले"));
+          return {
+            ...s,
+            taskStates: [...s.taskStates.filter((t) => !(t.farmCropId === farmCropId && t.taskKey === taskKey)), { farmCropId, taskKey, status, at: todayISO() }],
+          };
+        }),
 
       addReport: (about: Text, reason: Text) =>
         setState((s) => {
@@ -378,8 +479,12 @@ function useAppStore() {
       bookmarks: state.bookmarksBy[key] ?? [],
       tracker: state.trackerBy[key] ?? {},
       activity: state.activityBy[key] ?? [],
+      // My Farm: only the signed-in farmer's own crops and their records
+      myFarmCrops: state.farmCrops.filter((c) => c.owner === sessionId),
+      myFarmActivities: state.farmActivities.filter((a) => state.farmCrops.some((c) => c.id === a.farmCropId && c.owner === sessionId)),
+      myTaskStates: state.taskStates.filter((t) => state.farmCrops.some((c) => c.id === t.farmCropId && c.owner === sessionId)),
     }),
-    [state, key],
+    [state, key, sessionId],
   );
 
   return { state: view, hydrated, toastMsg, toast, account, isMine, ...i18n, ...actions };

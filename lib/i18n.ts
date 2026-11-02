@@ -40,10 +40,7 @@ const LABELS: Record<string, string> = {
   Approved: "मंजूर",
   Rejected: "नामंजूर",
   "Needs follow-up": "पाठपुरावा आवश्यक",
-  // enquiries / reports
-  New: "नवीन",
-  Replied: "उत्तर दिले",
-  Closed: "बंद",
+  // reports
   Open: "प्रलंबित",
   Resolved: "सोडवले",
   // crops

@@ -49,6 +49,12 @@ export default function AskKrishiMitra() {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs, waiting]);
 
+  // ?q= pre-fills the question (e.g. from a crop page); the farmer still taps Send
+  useEffect(() => {
+    const pre = new URLSearchParams(window.location.search).get("q");
+    if (pre) setQ(pre.slice(0, 600));
+  }, []);
+
   const ask = async (text: string) => {
     const question = text.trim();
     if (!question || waiting) return;

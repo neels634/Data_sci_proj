@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:lifecycle": "node lib/lifecycle.check.ts"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

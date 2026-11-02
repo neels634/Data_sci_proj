@@ -19,9 +19,7 @@ import {
   RotateCcw,
   ShoppingBasket,
   Sprout,
-  Store,
   UserRound,
-  Users,
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -63,7 +61,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           { href: "/schemes", label: l("Schemes", "योजना"), icon: <Landmark size={22} /> },
           { href: "/sell", label: l("Sell", "विक्री"), icon: <ShoppingBasket size={22} /> },
           { href: "/business", label: l("Business", "व्यवसाय"), icon: <Briefcase size={22} />, match: ["/calculator"] },
-          { href: "/women", label: l("Women & SHG", "महिला व गट"), icon: <Users size={22} /> },
+          { href: "/crops", label: l("My Farm", "माझी शेती"), icon: <Sprout size={22} /> },
         ]
       : state.role === "mitra"
         ? [
@@ -76,7 +74,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ? [
               { href: "/buyer", label: l("Home", "मुख्यपृष्ठ"), icon: <ShoppingBasket size={22} /> },
               { href: "/buyer/offers", label: l("My offers", "माझ्या ऑफर"), icon: <FileText size={22} /> },
-              { href: "/women", label: l("SHG products", "गट उत्पादने"), icon: <Store size={22} /> },
             ]
           : [
               { href: "/admin", label: l("Home", "मुख्यपृष्ठ"), icon: <BarChart3 size={22} /> },
