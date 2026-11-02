@@ -36,12 +36,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [menu, setMenu] = useState(false);
   const isWelcome = pathname === "/" || pathname === "/signup";
-  const isPublic = isWelcome || pathname === "/crop-check";
-  const blocked = hydrated && !account && !isPublic;
+  const blocked = hydrated && !account && !isWelcome;
   // the farmer home is only the four big options, so the bottom bar would just repeat them
   const showNav = !isWelcome && pathname !== "/home";
 
-  // every screen except log in / sign up / public tools needs a signed-in account
+  // every screen except log in / sign up needs a signed-in account
   useEffect(() => {
     if (blocked) router.replace("/");
   }, [blocked, router]);

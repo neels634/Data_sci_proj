@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, Phone, ScanEye, ShieldCheck, Sprout, UserPlus } from "lucide-react";
+import { ArrowRight, Lock, Mic, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { hashPin, type Account } from "@/lib/account";
 import { ROLE_HOME } from "@/components/AppShell";
@@ -210,33 +210,15 @@ export default function Login() {
         )}
       </div>
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-6 text-center">
+        <p className="text-sm text-muted">{l("New to Shet Samruddhi?", "शेत समृद्धीवर नवीन आहात?")}</p>
         <Link
-          href="/crop-check"
-          className="flex items-center justify-between rounded-2xl border border-leaf-700/30 bg-leaf-50 p-4 text-left transition hover:bg-leaf-100/60 shadow-sm"
+          href="/signup"
+          className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-leaf-700 bg-white text-lg font-semibold text-leaf-700"
         >
-          <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl bg-leaf-700 text-white shadow-sm">
-              <ScanEye size={24} />
-            </span>
-            <div>
-              <p className="text-base font-bold text-leaf-950">{l("Crop Check", "पीक तपासणी")}</p>
-              <p className="text-xs text-leaf-800">{l("AI photo diagnosis for leaf diseases & pests", "रोगांचे AI फोटो निदान आणि खात्रीशीर उपाय")}</p>
-            </div>
-          </div>
-          <ArrowRight size={18} className="text-leaf-700 shrink-0" />
+          <UserPlus size={20} /> {l("Create a new account", "नवीन खाते तयार करा")}
         </Link>
-
-        <div className="pt-2 text-center">
-          <p className="text-sm text-muted">{l("New to Shet Samruddhi?", "शेत समृद्धीवर नवीन आहात?")}</p>
-          <Link
-            href="/signup"
-            className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-leaf-700 bg-white text-lg font-semibold text-leaf-700"
-          >
-            <UserPlus size={20} /> {l("Create a new account", "नवीन खाते तयार करा")}
-          </Link>
-          <p className="mt-2 text-xs text-muted">{l("Takes about 3 minutes. Your Mandi Mitra can help you fill it.", "साधारण 3 मिनिटे लागतात. तुमचा मंडी मित्र भरण्यास मदत करू शकतो.")}</p>
-        </div>
+        <p className="mt-2 text-xs text-muted">{l("Takes about 3 minutes. Your Mandi Mitra can help you fill it.", "साधारण 3 मिनिटे लागतात. तुमचा मंडी मित्र भरण्यास मदत करू शकतो.")}</p>
       </div>
 
       <p className="mt-8 flex items-start gap-2 text-xs text-muted">
