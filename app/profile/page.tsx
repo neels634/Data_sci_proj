@@ -25,6 +25,7 @@ import {
 } from "@/lib/account";
 import { ROLE_HOME } from "@/components/AppShell";
 import { Button, Card, PageHeader } from "@/components/ui";
+import { VoiceCheck } from "@/components/speech";
 
 function Section({ title, rows }: { title: string; rows: [string, string][] }) {
   return (
@@ -156,6 +157,10 @@ export default function Profile() {
           "ही माहिती बदलण्यासाठी तुमच्या मंडी मित्राला किंवा समन्वयकाला विचारा. तुमचा फोन नंबर खरेदीदारांना कधीही दाखवला जात नाही.",
         )}
       </p>
+
+      <Card className="mt-4">
+        <VoiceCheck />
+      </Card>
 
       <Button
         variant="secondary"

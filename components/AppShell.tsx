@@ -25,6 +25,7 @@ import {
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 import { cx } from "./ui";
+import { VoiceHelpHost } from "./speech";
 
 export const ROLE_HOME: Record<Role, string> = { farmer: "/home", mitra: "/mitra", buyer: "/buyer", admin: "/admin" };
 
@@ -208,6 +209,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
+
+      <VoiceHelpHost />
 
       {toastMsg && (
         <div role="status" className="fixed inset-x-0 bottom-20 z-50 mx-auto w-fit max-w-[90%] rounded-xl bg-ink px-4 py-3 text-sm font-medium text-white shadow-lg">

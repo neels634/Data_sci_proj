@@ -8,8 +8,9 @@
  * is simply not shown and the field works as a normal text box.
  */
 import { forwardRef, useEffect, useRef, useState, type ComponentProps } from "react";
-import { Mic, Square, Volume2 } from "lucide-react";
+import { Mic, Square } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { toAsciiDigits } from "@/lib/marathi-numbers";
 import { cx } from "./ui";
 
 // Minimal typing for the Web Speech API (not in TypeScript's DOM lib).
@@ -34,11 +35,8 @@ function getRecognition(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-const DEVANAGARI_DIGITS = "०१२३४५६७८९";
-/** "१२.५" → "12.5" so number fields understand spoken Marathi numbers. */
-export function toAsciiDigits(s: string) {
-  return s.replace(/[०-९]/g, (d) => String(DEVANAGARI_DIGITS.indexOf(d)));
-}
+// moved to lib/marathi-numbers.ts; re-exported so existing imports keep working
+export { toAsciiDigits };
 
 /** Only one field listens at a time. */
 let active: Recognition | null = null;
@@ -161,44 +159,5 @@ export function TextArea({ className, ...props }: ComponentProps<"textarea">) {
       <textarea {...props} className={cx(className, "pr-12")} />
       <MicButton className="absolute bottom-2 right-1" getValue={() => String(props.value ?? "")} onText={(v) => emit(props.onChange, v)} />
     </div>
-  );
-}
-
-/** Reads text aloud in the app's language with the phone's own voice; hidden where unsupported. */
-export function ReadAloud({ text, className }: { text: string; className?: string }) {
-  const { state, l } = useStore();
-  const [supported, setSupported] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  useEffect(() => setSupported(typeof window !== "undefined" && "speechSynthesis" in window), []);
-  useEffect(() => () => void (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.cancel()), []);
-  if (!supported) return null;
-  const toggle = () => {
-    window.speechSynthesis.cancel();
-    if (speaking) return setSpeaking(false);
-    const u = new SpeechSynthesisUtterance(text);
-    const lang = state.lang === "mr" ? "mr" : "en";
-    u.lang = lang === "mr" ? "mr-IN" : "en-IN";
-    const voice = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang === "mr" ? "mr" : "en-in"));
-    if (voice) u.voice = voice;
-    u.rate = 0.95;
-    u.onend = u.onerror = () => setSpeaking(false);
-    setSpeaking(true);
-    window.speechSynthesis.speak(u);
-  };
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-pressed={speaking}
-      aria-label={speaking ? l("Stop reading", "वाचन थांबवा") : l("Read aloud", "मोठ्याने वाचा")}
-      title={speaking ? l("Stop reading", "वाचन थांबवा") : l("Read aloud", "मोठ्याने वाचा")}
-      className={cx(
-        "grid size-12 shrink-0 place-items-center rounded-full transition-colors",
-        speaking ? "animate-pulse bg-soil text-white" : "bg-leaf-100 text-leaf-700 hover:bg-leaf-700 hover:text-white",
-        className,
-      )}
-    >
-      {speaking ? <Square size={16} fill="currentColor" /> : <Volume2 size={22} />}
-    </button>
   );
 }

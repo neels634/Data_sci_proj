@@ -22,6 +22,7 @@ import {
   seedFarm,
 } from "./data";
 import { bi, fmtDate, label, tx, type Bi, type Text } from "./i18n";
+import { fmtNum } from "./marathi-numbers";
 import { profileFromAccount, type Account } from "./account";
 import { occurrences, todayISO } from "./lifecycle";
 import { getCrop } from "./crops";
@@ -61,6 +62,9 @@ interface AppState {
   reports: Report[];
   activityBy: Record<string, ActivityItem[]>;
   /** My Farm: every farmer's crops, their activity log and done/skipped task occurrences */
+  /** read-aloud: "don't show again" on the no-Marathi-voice help, and the one-time Hindi-voice tip */
+  voiceHelpDismissed: boolean;
+  voiceTipSeen: boolean;
   farmCrops: FarmCrop[];
   farmActivities: FarmActivity[];
   taskStates: TaskState[];
@@ -88,6 +92,8 @@ const initialState = (): AppState => {
     { id: "a2", text: bi("Marked PM-KISAN as Applied", "पीएम-किसान: अर्ज केला"), at: "2026-10-20" },
     ],
   },
+  voiceHelpDismissed: false,
+  voiceTipSeen: false,
   farmCrops: farm.crops,
   farmActivities: farm.activities,
   taskStates: farm.taskStates,
@@ -344,6 +350,9 @@ function useAppStore() {
         }),
 
 
+      dismissVoiceHelp: (dismissed = true) => setState((s) => ({ ...s, voiceHelpDismissed: dismissed })),
+      markVoiceTip: () => setState((s) => (s.voiceTipSeen ? s : { ...s, voiceTipSeen: true })),
+
       // ---- My Farm: every action checks the crop belongs to the signed-in farmer
       addFarmCrop: (c: Omit<FarmCrop, "owner" | "createdAt">) =>
         setState((s) => {
@@ -462,6 +471,8 @@ function useAppStore() {
       /** label for a fixed value such as a status, crop or category */
       lbl: (v: string) => label(lang, v),
       date: (iso: string) => fmtDate(lang, iso),
+      /** number for display: Devanagari digits and Indian grouping in Marathi */
+      num: (n: number, opts?: Intl.NumberFormatOptions) => fmtNum(lang, n, opts),
     }),
     [lang],
   );

@@ -21,7 +21,9 @@ import {
 } from "@/lib/lifecycle";
 import type { ActivityType, CropInfo, FarmCrop } from "@/lib/types";
 import { ACTIVITY, LogActivitySheet, NotVerified, SprayBanner, StageTimeline, TaskRow, useFarm } from "@/components/myfarm/ui";
-import { Input, ReadAloud } from "@/components/voice";
+import { Input } from "@/components/voice";
+import { SpeakButton } from "@/components/speech";
+import { ordinalMr, toAsciiDigits } from "@/lib/marathi-numbers";
 import { Button, Card, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
 
 export default function FarmCropPage() {
@@ -41,7 +43,7 @@ export default function FarmCropPage() {
 }
 
 function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
-  const { state, l, tx, today, short, ago, cropTitle, markSown, markHarvested, removeFarmCrop, setTaskState } = useFarm();
+  const { state, l, tx, ctx, num, today, short, ago, cropTitle, markSown, markHarvested, removeFarmCrop, setTaskState } = useFarm();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -69,12 +71,26 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
     `माझे पीक: ${crop.name.mr}${tx(fc.variety) ? `, वाण ${tx(fc.variety)}` : ""}, ${seasonName(crop, fc.seasonIndex).mr} हंगाम${day != null ? `, पेरणीनंतर ${day} वा दिवस` : ", अजून पेरणी नाही"}${now ? `, अवस्था: ${now.stage.name.mr}` : ""}. शेवटची फवारणी: ${spray ? `${spray.last.productName ?? ACTIVITY[spray.last.type].label.mr}, ${spray.daysSince} दिवसांपूर्वी` : "नोंद नाही"}. माझा प्रश्न: `,
   );
 
+  const mr = state.lang === "mr";
+  // ISO dates and digits are turned into Marathi words by the speech module
+  const statusSpeech = [
+    growing && now && day != null
+      ? mr
+        ? `${day === 0 ? "पेरणीचा दिवस" : `${ordinalMr(day)} दिवस`}, टप्पा: ${tx(now.stage.name)}. ${now.pastLastStage ? "अपेक्षित काढणी कालावधी संपला आहे." : `या टप्प्याचे ${now.daysLeft} दिवस बाकी.`}`
+        : `Day ${day}, ${tx(now.stage.name)} stage. ${now.pastLastStage ? "Past the expected harvest window." : `${now.daysLeft} days left in this stage.`}`
+      : "",
+    hw ? (mr ? `काढणी ${hw.earliest} ते ${hw.latest}${hw.estimate ? ", अंदाजे" : ""}.` : `Harvest ${short(hw.earliest)} to ${short(hw.latest)}${hw.estimate ? ", estimated" : ""}.`) : "",
+    growing ? (spray ? (mr ? `शेवटची फवारणी ${spray.daysSince} दिवसांपूर्वी.` : `Last spray ${spray.daysSince} days ago.`) : mr ? "फवारणीची नोंद नाही." : "No spray recorded.") : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div>
       <PageHeader
         back="/crops"
         title={`${crop.emoji} ${cropTitle(fc)}`}
-        sub={`${tx(fc.plotName) || l("My field", "माझे शेत")} · ${fc.areaAcres} ${l("acre", "एकर")} · ${tx(seasonName(crop, fc.seasonIndex))}`}
+        sub={`${tx(fc.plotName) || l("My field", "माझे शेत")} · ${num(fc.areaAcres)} ${l("acre", "एकर")} · ${tx(seasonName(crop, fc.seasonIndex))}`}
         action={
           <div className="relative flex gap-1">
             <button onClick={() => setEditing((x) => !x)} className="grid size-12 place-items-center rounded-full border border-line bg-white text-leaf-700" aria-label={l("Edit crop", "पीक बदला")}>
@@ -122,9 +138,12 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
       <div className="rounded-3xl bg-gradient-to-br from-leaf-700 to-leaf-900 p-4 text-white">
         {growing && now ? (
           <>
-            <p className="text-sm text-white/80">{l(`Day ${day}`, `दिवस ${day}`)}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm text-white/80">{l(`Day ${num(day ?? 0)}`, `दिवस ${num(day ?? 0)}`)}</p>
+              <SpeakButton id={`status:${fc.id}`} text={statusSpeech} label={l("Read crop status", "पिकाची स्थिती वाचून दाखवा")} size="sm" className="bg-white/15 text-white hover:bg-white hover:text-leaf-900" />
+            </div>
             <p className="text-2xl font-bold">{tx(now.stage.name)}</p>
-            <p className="text-sm text-white/85">{now.pastLastStage ? l("Past the expected harvest window", "अपेक्षित काढणी कालावधी संपला") : l(`${now.daysLeft} days left in this stage`, `या अवस्थेचे ${now.daysLeft} दिवस बाकी`)}</p>
+            <p className="text-sm text-white/85">{now.pastLastStage ? l("Past the expected harvest window", "अपेक्षित काढणी कालावधी संपला") : l(`${num(now.daysLeft)} days left in this stage`, `या अवस्थेचे ${num(now.daysLeft)} दिवस बाकी`)}</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
               <div className="h-full rounded-full bg-[#f2c14e]" style={{ width: `${now.overall}%` }} />
             </div>
@@ -135,7 +154,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
             <p className="text-2xl font-bold">
               {(() => {
                 const n = daysBetween(today, fc.plannedSowingDate);
-                return n > 0 ? l(`Sowing in ${n} days`, `${n} दिवसांनी पेरणी`) : n === 0 ? l("Sowing today", "आज पेरणी") : l(`Planned date passed ${-n} days ago`, `नियोजित तारीख ${-n} दिवसांपूर्वी गेली`);
+                return n > 0 ? l(`Sowing in ${num(n)} days`, `${num(n)} दिवसांनी पेरणी`) : n === 0 ? l("Sowing today", "आज पेरणी") : l(`Planned date passed ${num(-n)} days ago`, `नियोजित तारीख ${num(-n)} दिवसांपूर्वी गेली`);
               })()}
             </p>
             <p className="text-sm text-white/85">{short(fc.plannedSowingDate)}</p>
@@ -199,7 +218,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
             </div>
           </div>
 
-          <SectionTitle action={due.length > 0 ? <ReadAloud text={due.map((o) => tx(o.task.title)).join(". ")} /> : undefined}>{l("Today", "आज")}</SectionTitle>
+          <SectionTitle action={due.length > 0 ? <SpeakButton id={`today:${fc.id}`} text={due.map((o) => `${tx(o.task.title)}${o.overdue ? l(", overdue", ", राहिलेले") : ""}`).join(". ")} label={l("Read today's tasks", "आजची कामे वाचून दाखवा")} /> : undefined}>{l("Today", "आज")}</SectionTitle>
           {due.length ? (
             <div className="space-y-2">
               {due.map((o) => (
@@ -216,7 +235,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
                 {soon.map((o) => (
                   <div key={o.key} className="flex min-h-14 items-center gap-3 px-4 py-2">
                     <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", ACTIVITY[o.task.type].tone)}>{ACTIVITY[o.task.type].icon}</span>
-                    <span className="min-w-0 flex-1 font-semibold leading-tight">{tx(o.task.title)}</span>
+                    <span className="min-w-0 flex-1 font-semibold leading-tight">{ctx(o.task.title)}</span>
                     <span className="shrink-0 text-sm text-muted">{short(o.date)}</span>
                   </div>
                 ))}
@@ -263,9 +282,9 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
                   {a.quantity && <span className="block text-sm text-muted">{a.quantity}</span>}
                   {(a.preHarvestIntervalDays != null || a.reEntryHours != null) && (
                     <span className="block text-sm text-muted">
-                      {a.preHarvestIntervalDays != null && l(`Wait ${a.preHarvestIntervalDays} days before harvest`, `काढणीपूर्वी ${a.preHarvestIntervalDays} दिवस थांबा`)}
+                      {a.preHarvestIntervalDays != null && l(`Wait ${num(a.preHarvestIntervalDays)} days before harvest`, `काढणीपूर्वी ${num(a.preHarvestIntervalDays)} दिवस थांबा`)}
                       {a.preHarvestIntervalDays != null && a.reEntryHours != null && " · "}
-                      {a.reEntryHours != null && l(`${a.reEntryHours} h before entering`, `शेतात जाण्यापूर्वी ${a.reEntryHours} तास`)}
+                      {a.reEntryHours != null && l(`${num(a.reEntryHours)} h before entering`, `शेतात जाण्यापूर्वी ${num(a.reEntryHours)} तास`)}
                     </span>
                   )}
                   {a.notes && <span className="block text-sm text-muted">{a.notes}</span>}
@@ -325,13 +344,13 @@ function EditCrop({ fc, onDone }: { fc: FarmCrop; onDone: () => void }) {
         <Input className={inputCls} value={plot} maxLength={40} onChange={(e) => setPlot(e.target.value)} />
       </Field>
       <Field label={l("Area in acres", "क्षेत्र एकरमध्ये")} error={err.area}>
-        <Input className={inputCls} inputMode="decimal" value={area} maxLength={6} onChange={(e) => setArea(e.target.value.replace(/[^\d.]/g, ""))} />
+        <Input className={inputCls} inputMode="decimal" value={area} maxLength={6} onChange={(e) => setArea(toAsciiDigits(e.target.value).replace(/[^\d.]/g, ""))} />
       </Field>
       <Field label={l("Days to harvest (from – to)", "काढणीपर्यंतचे दिवस (पासून – पर्यंत)")} error={err.dur} hint={l("Change this if your variety is shorter or longer.", "तुमचा वाण कमी-जास्त दिवसांचा असल्यास बदला.")}>
         <div className="flex items-center gap-2">
-          <Input className={inputCls} inputMode="numeric" value={min} maxLength={3} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} />
+          <Input className={inputCls} inputMode="numeric" value={min} maxLength={3} onChange={(e) => setMin(toAsciiDigits(e.target.value).replace(/\D/g, ""))} />
           <span>–</span>
-          <Input className={inputCls} inputMode="numeric" value={max} maxLength={3} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} />
+          <Input className={inputCls} inputMode="numeric" value={max} maxLength={3} onChange={(e) => setMax(toAsciiDigits(e.target.value).replace(/\D/g, ""))} />
         </div>
       </Field>
       <div className="grid grid-cols-2 gap-2">

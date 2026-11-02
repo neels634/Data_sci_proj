@@ -8,6 +8,7 @@ import { expectedHarvestWindow, monthOf, occurrences } from "@/lib/lifecycle";
 import type { CropInfo, FarmCrop } from "@/lib/types";
 import { ACTIVITY, useFarm } from "@/components/myfarm/ui";
 import { Input } from "@/components/voice";
+import { toAsciiDigits } from "@/lib/marathi-numbers";
 import { Button, Card, Field, PageHeader, cx, inputCls } from "@/components/ui";
 
 export default function AddCropPage() {
@@ -23,7 +24,7 @@ const uid = () => `fc${Date.now().toString(36)}${Math.random().toString(36).slic
 function AddCrop() {
   const params = useSearchParams();
   const router = useRouter();
-  const { l, tx, today, short, addFarmCrop } = useFarm();
+  const { l, tx, ctx, num, today, short, addFarmCrop } = useFarm();
   const pre = getCrop(params.get("crop") ?? "");
   const [step, setStep] = useState(pre ? 1 : 0);
   const [cropId, setCropId] = useState(pre?.id ?? "");
@@ -183,7 +184,7 @@ function AddCrop() {
                   <span>
                     <span className="block font-bold">{tx(seasonName(crop, i))}</span>
                     <span className="block text-sm text-muted">
-                      {tx(s.sowingWindow)} · {l(`${s.durationDays[0]}–${s.durationDays[1]} days`, `${s.durationDays[0]}–${s.durationDays[1]} दिवस`)}
+                      {ctx(s.sowingWindow)} · {l(`${num(s.durationDays[0])}–${num(s.durationDays[1])} days`, `${num(s.durationDays[0])}–${num(s.durationDays[1])} दिवस`)}
                     </span>
                   </span>
                   {s.sowingMonths.includes(nowMonth) && <span className="shrink-0 text-sm font-semibold text-leaf-700">{l("Now ✓", "आता ✓")}</span>}
@@ -210,7 +211,7 @@ function AddCrop() {
             <Input className={inputCls} value={plot} maxLength={40} onChange={(e) => setPlot(e.target.value)} placeholder={l("e.g. Field near well", "उदा. विहिरीजवळचे शेत")} />
           </Field>
           <Field label={l("Area in acres *", "क्षेत्र एकरमध्ये *")} error={err.area}>
-            <Input className={inputCls} inputMode="decimal" value={area} maxLength={6} onChange={(e) => setArea(e.target.value.replace(/[^\d.]/g, ""))} />
+            <Input className={inputCls} inputMode="decimal" value={area} maxLength={6} onChange={(e) => setArea(toAsciiDigits(e.target.value).replace(/[^\d.]/g, ""))} />
           </Field>
         </div>
       )}
@@ -245,7 +246,7 @@ function AddCrop() {
           {offSeason && (
             <p className="flex gap-2 rounded-2xl bg-gold-100 p-3 text-[15px] text-[#6b4708]" role="status">
               <TriangleAlert size={20} className="mt-0.5 shrink-0" />
-              {l(`This is not the usual sowing time for this season (${season.sowingWindow.en}).`, `या हंगामासाठी ही नेहमीची पेरणीची वेळ नाही (${season.sowingWindow.mr}).`)}
+              {l(`This is not the usual sowing time for this season (${ctx(season.sowingWindow)}).`, `या हंगामासाठी ही नेहमीची पेरणीची वेळ नाही (${ctx(season.sowingWindow)}).`)}
             </p>
           )}
           {hw && (
@@ -262,7 +263,7 @@ function AddCrop() {
                       <li key={o.key} className="flex items-center gap-2">
                         <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", ACTIVITY[o.task.type].tone)}>{ACTIVITY[o.task.type].icon}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block font-semibold leading-tight">{tx(o.task.title)}</span>
+                          <span className="block font-semibold leading-tight">{ctx(o.task.title)}</span>
                           <span className="text-sm text-muted">{short(o.date)}</span>
                         </span>
                       </li>

@@ -69,6 +69,7 @@ listings → Create pooled lot → log in as the **Buyer** → open the lot → 
   Saved to localStorage as `udyamsetu-state-v5`; older v4 data is upgraded once, keeping accounts.
 - `lib/crops.ts` — Crop Library: 8 crops with seasons, stages, tasks and care notes. General guidance
   only, marked "Not yet verified" until an agronomist reviews it (no chemical names with doses).
+- `lib/speech.ts`, `lib/marathi-numbers.ts`, `components/speech.tsx` — read-aloud (see below).
 - `lib/lifecycle.ts` — pure My Farm logic: local-date helpers (no UTC off-by-one in IST), current stage,
   harvest window, timeline, today's and overdue tasks, spray waiting-period warnings.
   `npm run check:lifecycle` runs the assertion examples in `lib/lifecycle.check.ts`.
@@ -77,6 +78,24 @@ listings → Create pooled lot → log in as the **Buyer** → open the lot → 
   spray banner and Log activity sheet.
 - `components/` — app shell, shared UI, cost calculator
 - `app/` — one folder per screen (Next.js App Router)
+
+## Read aloud (Marathi)
+
+All read-aloud goes through `lib/speech.ts` (`useSpeech()`, `<SpeakButton>` in `components/speech.tsx`).
+In Marathi, `lib/marathi-numbers.ts` turns numbers, money, ranges, percents, units, dates and phone
+numbers into Marathi words before speaking (`npm run check:marathi` runs its checks), and numbers on
+screen show in Devanagari digits. Marathi is read by a Marathi voice, else a Hindi voice, never an
+English one; with no Indic voice the app shows how to install the Marathi voice (Android). The voice
+status and a Test voice button are on Profile and Help.
+
+Optional cloud voice for phones without any Marathi/Hindi voice (Google Cloud Text-to-Speech, mr-IN):
+
+| Variable | Where | Meaning |
+| --- | --- | --- |
+| `TTS_PROVIDER=google` | server | turns on `app/api/tts` |
+| `GOOGLE_TTS_API_KEY` | server | Google Cloud API key with Text-to-Speech enabled (never sent to the browser) |
+| `GOOGLE_TTS_VOICE` | server, optional | a specific mr-IN voice name; otherwise Google's default mr-IN voice |
+| `NEXT_PUBLIC_TTS_CLOUD=1` | build time | lets the app use `/api/tts` when no device voice exists |
 
 ## Not in this prototype
 

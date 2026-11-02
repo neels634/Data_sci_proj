@@ -8,7 +8,7 @@ import { CATEGORIES, CATEGORY_LABEL, CROPS, getCrop, searchCrops } from "@/lib/c
 import { currentStage, dayNumber, daysBetween, expectedHarvestWindow, lastActivity, todayTasks, type TaskOccurrence } from "@/lib/lifecycle";
 import type { CropInfo, FarmCrop } from "@/lib/types";
 import { LogActivitySheet, TaskRow, useFarm } from "@/components/myfarm/ui";
-import { ReadAloud } from "@/components/voice";
+import { SpeakButton } from "@/components/speech";
 import { Card, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
 
 type Tab = "mine" | "library";
@@ -52,7 +52,7 @@ function MyFarm() {
 // ---- My Crops ------------------------------------------------------------------------------
 
 function MyCrops() {
-  const { state, l, tx, today } = useFarm();
+  const { state, l, tx, num, today } = useFarm();
   const [log, setLog] = useState<{ fc: FarmCrop; o: TaskOccurrence } | null>(null);
   const [showPast, setShowPast] = useState(false);
   const crops = state.myFarmCrops;
@@ -60,14 +60,14 @@ function MyCrops() {
   const current = crops.filter((c) => c.status === "growing" || c.status === "planned").sort((a, b) => (a.status === b.status ? 0 : a.status === "growing" ? -1 : 1));
   const past = crops.filter((c) => c.status === "harvested" || c.status === "abandoned");
   const byId = (id: string) => crops.find((c) => c.id === id)!;
-  const speech = tasks.map((t) => `${tx(getCrop(byId(t.farmCropId).cropId)?.name)}: ${tx(t.task.title)}`).join(". ");
+  const speech = tasks.map((t) => `${tx(getCrop(byId(t.farmCropId).cropId)?.name)}: ${tx(t.task.title)}${t.overdue ? l(", overdue", ", राहिलेले") : ""}`).join(". ");
 
   return (
     <div>
       <Card className="border-leaf-600/30">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold">{l("Today's tasks", "आजची कामे")}</h2>
-          {tasks.length > 0 && <ReadAloud text={`${l("Today's tasks", "आजची कामे")}. ${speech}`} />}
+          {tasks.length > 0 && <SpeakButton id="today-tasks" text={`${l("Today's tasks", "आजची कामे")}. ${speech}`} label={l("Read today's tasks", "आजची कामे वाचून दाखवा")} />}
         </div>
         {tasks.length ? (
           <div className="mt-3 space-y-2">
@@ -94,7 +94,7 @@ function MyCrops() {
       {past.length > 0 && (
         <div className="mt-6">
           <button className="flex min-h-12 w-full items-center justify-between font-bold" onClick={() => setShowPast((x) => !x)} aria-expanded={showPast}>
-            {l(`Past crops (${past.length})`, `मागील पिके (${past.length})`)}
+            {l(`Past crops (${num(past.length)})`, `मागील पिके (${num(past.length)})`)}
             <ChevronDown className={cx("transition-transform", showPast && "rotate-180")} />
           </button>
           {showPast && (
@@ -113,7 +113,7 @@ function MyCrops() {
 }
 
 function CropCard({ fc }: { fc: FarmCrop }) {
-  const { state, l, tx, today, short, ago, cropOf, cropTitle } = useFarm();
+  const { state, l, tx, num, today, short, ago, cropOf, cropTitle } = useFarm();
   const crop = cropOf(fc);
   if (!crop) return null;
   const now = currentStage(fc, crop, today);
@@ -123,14 +123,14 @@ function CropCard({ fc }: { fc: FarmCrop }) {
     fc.status === "planned" && fc.plannedSowingDate
       ? (() => {
           const n = daysBetween(today, fc.plannedSowingDate);
-          return n > 0 ? l(`Sowing in ${n} days`, `${n} दिवसांनी पेरणी`) : n === 0 ? l("Sowing today", "आज पेरणी") : l("Sowing date passed", "पेरणीची तारीख गेली");
+          return n > 0 ? l(`Sowing in ${num(n)} days`, `${num(n)} दिवसांनी पेरणी`) : n === 0 ? l("Sowing today", "आज पेरणी") : l("Sowing date passed", "पेरणीची तारीख गेली");
         })()
       : fc.status === "harvested"
         ? l("Harvested", "काढणी झाली")
         : fc.status === "abandoned"
           ? l("Stopped", "बंद")
           : now
-            ? l(`Day ${dayNumber(fc, today)} · ${now.stage.name.en}`, `दिवस ${dayNumber(fc, today)} · ${now.stage.name.mr}`)
+            ? l(`Day ${num(dayNumber(fc, today) ?? 0)} · ${tx(now.stage.name)}`, `दिवस ${num(dayNumber(fc, today) ?? 0)} · ${tx(now.stage.name)}`)
             : "";
   return (
     <Link href={`/crops/my/${fc.id}`} className="block">
@@ -142,7 +142,7 @@ function CropCard({ fc }: { fc: FarmCrop }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-bold">{cropTitle(fc)}</p>
             <p className="truncate text-sm text-muted">
-              {tx(fc.plotName) || l("My field", "माझे शेत")} · {fc.areaAcres} {l("acre", "एकर")}
+              {tx(fc.plotName) || l("My field", "माझे शेत")} · {num(fc.areaAcres)} {l("acre", "एकर")}
             </p>
             {chip && <span className="mt-1 inline-block rounded-full bg-leaf-100 px-2.5 py-0.5 text-sm font-semibold text-leaf-900">{chip}</span>}
           </div>

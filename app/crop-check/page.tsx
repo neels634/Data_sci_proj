@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Volume2, Camera, RefreshCw, PhoneCall, CheckCircle2 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useSpeech } from "@/lib/speech";
 
 type Lang = "en" | "hi" | "mr";
 
@@ -127,21 +128,6 @@ const STRINGS: Record<Lang, Strings> = {
   },
 };
 
-const SPEECH_LANG: Record<Lang, string> = {
-  en: "en-IN",
-  hi: "hi-IN",
-  mr: "mr-IN",
-};
-
-function speakText(text: string, lang: Lang) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = SPEECH_LANG[lang];
-  u.rate = 0.9;
-  window.speechSynthesis.speak(u);
-}
-
 function compressImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -185,6 +171,7 @@ interface CropResult {
 
 export default function CropCheckPage() {
   const { state: appState } = useStore();
+  const speech = useSpeech();
   const [lang, setLang] = useState<Lang>(appState.lang === "mr" ? "mr" : "en");
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null]);
   const [step, setStep] = useState<"capture" | "result">("capture");
@@ -337,9 +324,8 @@ export default function CropCheckPage() {
     }
   };
 
-  const handleSpeak = (text: string) => {
-    speakText(text, lang);
-  };
+  // shared read-aloud; Hindi uses a hi-IN voice and skips the Marathi number verbalizer
+  const handleSpeak = (text: string) => speech.speak("crop-check", text, lang);
 
   return (
     <div className="flex flex-col gap-4 pb-8">

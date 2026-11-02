@@ -596,3 +596,79 @@ export function validateCrops(list: CropInfo[] = CROPS): string[] {
 if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
   for (const e of validateCrops()) console.warn(`[crops] ${e}`);
 }
+
+// ---- read-aloud -------------------------------------------------------------------------------
+
+export const SECTION_KEYS = ["overview", "sow", "soil", "seed", "nursery", "irrigation", "nutrients", "stages", "problems", "harvest", "storage"] as const;
+export type SectionKey = (typeof SECTION_KEYS)[number];
+
+/** Sections that apply to this crop (no nursery section for direct-sown crops). */
+export const sectionsFor = (crop: CropInfo): SectionKey[] => SECTION_KEYS.filter((k) => k !== "nursery" || crop.method !== "direct");
+
+/**
+ * A section as complete spoken sentences, built from the same bilingual fields shown on screen.
+ * Numbers stay as digits here; lib/speech.ts turns them into Marathi words when reading Marathi.
+ * `month` (1–12) adds "now is a good time to sow" for seasons that fit.
+ */
+export function spokenSection(crop: CropInfo, key: SectionKey, lang: "en" | "mr", month?: number): string {
+  const p = (x: { en: string; mr: string }) => x[lang];
+  const mr = lang === "mr";
+  const days = crop.seasons.flatMap((s) => s.durationDays);
+  switch (key) {
+    case "overview": {
+      const how =
+        crop.method === "transplant"
+          ? mr
+            ? "रोपवाटिकेत रोपे करून मग पुनर्लागवड केली जाते"
+            : "is raised in a nursery and then transplanted"
+          : crop.method === "both"
+            ? mr
+              ? "थेट पेरणी किंवा पुनर्लागवड करून घेता येते"
+              : "can be sown directly or transplanted"
+            : mr
+              ? "शेतात थेट पेरले जाते"
+              : "is sown directly in the field";
+      return mr
+        ? `${p(crop.name)} हे ${p(CATEGORY_LABEL[crop.category])} पीक आहे. ते ${how}. पेरणीपासून काढणीपर्यंत साधारण ${Math.min(...days)} ते ${Math.max(...days)} दिवस लागतात.`
+        : `${p(crop.name)} ${how}. It takes about ${Math.min(...days)} to ${Math.max(...days)} days from sowing to harvest.`;
+    }
+    case "sow":
+      return crop.seasons
+        .map((s, i) => {
+          const name = p(seasonName(crop, i));
+          const now = month != null && s.sowingMonths.includes(month);
+          return mr
+            ? `${name} हंगाम. पेरणीची वेळ: ${p(s.sowingWindow)}. पीक तयार होण्यास ${s.durationDays[0]} ते ${s.durationDays[1]} दिवस लागतात.${now ? " आत्ता पेरणीसाठी योग्य वेळ आहे." : ""}`
+            : `${name} season. Sowing time: ${p(s.sowingWindow)}. The crop takes ${s.durationDays[0]} to ${s.durationDays[1]} days to be ready.${now ? " Now is a good time to sow." : ""}`;
+        })
+        .join(" ");
+    case "soil":
+      return mr ? `जमीन: ${p(crop.soil)} हवामान: ${p(crop.climate)}` : `Soil: ${p(crop.soil)} Climate: ${p(crop.climate)}`;
+    case "seed":
+      return mr ? `बियाणे: ${p(crop.seedRate)} अंतर: ${p(crop.spacing)}` : `Seed rate: ${p(crop.seedRate)} Spacing: ${p(crop.spacing)}`;
+    case "nursery":
+      return mr
+        ? `साधारण ${crop.nurseryDays ?? 30} दिवस रोपवाटिकेत रोपे वाढवा, मग मुख्य शेतात पुनर्लागवड करा.`
+        : `Raise seedlings in a nursery for about ${crop.nurseryDays ?? 30} days, then transplant them to the main field.`;
+    case "irrigation":
+      return p(crop.irrigation);
+    case "nutrients":
+      return p(crop.nutrientGuide);
+    case "stages":
+      return crop.stages
+        .map((s, i) =>
+          mr
+            ? `टप्पा ${i + 1}: ${p(s.name)}, दिवस ${s.startDay} ते ${s.endDay}. ${p(s.whatHappens)}`
+            : `Stage ${i + 1}: ${p(s.name)}, day ${s.startDay} to ${s.endDay}. ${p(s.whatHappens)}`,
+        )
+        .join(" ");
+    case "problems":
+      return crop.commonProblems
+        .map((x) => (mr ? `${p(x.name)}. लक्षणे: ${p(x.signs)} प्रतिबंध: ${p(x.prevention)}` : `${p(x.name)}. Signs: ${p(x.signs)} Prevention: ${p(x.prevention)}`))
+        .join(" ");
+    case "harvest":
+      return p(crop.harvestSigns);
+    case "storage":
+      return `${p(crop.postHarvest)} ${p(crop.marketTips)}`;
+  }
+}

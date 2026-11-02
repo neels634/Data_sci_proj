@@ -2,15 +2,17 @@
 
 import { useParams } from "next/navigation";
 import { Search, Sprout } from "lucide-react";
-import { CATEGORY_LABEL, getCrop, seasonName } from "@/lib/crops";
+import { CATEGORY_LABEL, getCrop, seasonName, sectionsFor, spokenSection, type SectionKey } from "@/lib/crops";
 import { monthOf } from "@/lib/lifecycle";
+import { useSpeech } from "@/lib/speech";
+import type { CropInfo } from "@/lib/types";
 import { NotVerified, StageTimeline, useFarm } from "@/components/myfarm/ui";
-import { ReadAloud } from "@/components/voice";
-import { Card, Empty, LinkButton, PageHeader } from "@/components/ui";
+import { ReadPageButton, SpeakButton } from "@/components/speech";
+import { Card, Empty, LinkButton, PageHeader, cx } from "@/components/ui";
 
 export default function CropInfoPage() {
   const { cropId } = useParams<{ cropId: string }>();
-  const { l, tx, today } = useFarm();
+  const { l, tx, ctx, num, today, state } = useFarm();
   const crop = getCrop(cropId);
   if (!crop)
     return (
@@ -20,90 +22,102 @@ export default function CropInfoPage() {
       </div>
     );
 
+  const lang = state.lang === "mr" ? "mr" : "en";
   const month = monthOf(today);
   const days = crop.seasons.flatMap((s) => s.durationDays);
-  const overview = l(
-    `${crop.name.en} (${CATEGORY_LABEL[crop.category].en.toLowerCase()}) is ${crop.method === "transplant" ? "raised in a nursery and then transplanted" : crop.method === "both" ? "sown directly or transplanted" : "sown directly in the field"}. It takes about ${Math.min(...days)}–${Math.max(...days)} days from sowing to harvest.`,
-    `${crop.name.mr} (${CATEGORY_LABEL[crop.category].mr}) ${crop.method === "transplant" ? "रोपवाटिकेत रोपे करून मग पुनर्लागवड केली जाते" : crop.method === "both" ? "थेट पेरणी किंवा पुनर्लागवड करून घेता येते" : "शेतात थेट पेरले जाते"}. पेरणीपासून काढणीपर्यंत साधारण ${Math.min(...days)}–${Math.max(...days)} दिवस लागतात.`,
-  );
-  const sections: { title: string; body: string }[] = [
-    { title: l("Soil & climate", "जमीन व हवामान"), body: `${tx(crop.soil)} ${tx(crop.climate)}` },
-    { title: l("Seed rate & spacing", "बियाणे व अंतर"), body: `${tx(crop.seedRate)} ${tx(crop.spacing)}` },
-    ...(crop.method !== "direct"
-      ? [
-          {
-            title: l("Nursery & transplanting", "रोपवाटिका व पुनर्लागवड"),
-            body: l(
-              `Raise seedlings in a nursery for about ${crop.nurseryDays ?? 30} days, then transplant them to the main field.`,
-              `साधारण ${crop.nurseryDays ?? 30} दिवस रोपवाटिकेत रोपे वाढवा, मग मुख्य शेतात पुनर्लागवड करा.`,
-            ),
-          },
-        ]
-      : []),
-    { title: l("Irrigation", "पाणी"), body: tx(crop.irrigation) },
-    { title: l("Nutrients (general)", "खते (सर्वसाधारण)"), body: tx(crop.nutrientGuide) },
-  ];
+  const range = (a: number, b: number) => `${num(a)}–${num(b)}`;
+  const title: Record<SectionKey, string> = {
+    overview: l("Overview", "थोडक्यात"),
+    sow: l("When to sow", "पेरणी कधी करावी"),
+    soil: l("Soil & climate", "जमीन व हवामान"),
+    seed: l("Seed rate & spacing", "बियाणे व अंतर"),
+    nursery: l("Nursery & transplanting", "रोपवाटिका व पुनर्लागवड"),
+    irrigation: l("Irrigation", "पाणी"),
+    nutrients: l("Nutrients (general)", "खते (सर्वसाधारण)"),
+    stages: l("Growth stages", "वाढीच्या अवस्था"),
+    problems: l("Common problems", "नेहमीच्या समस्या"),
+    harvest: l("Harvest signs", "काढणीची लक्षणे"),
+    storage: l("Storage & selling tips", "साठवण व विक्री"),
+  };
+  const keys = sectionsFor(crop);
+  const spoken = (k: SectionKey) => `${title[k]}. ${spokenSection(crop, k, lang, month)}`;
+  const parts = keys.map((k) => ({ id: `${crop.id}:${k}`, text: spoken(k) }));
+
+  const body: Record<SectionKey, React.ReactNode> = {
+    overview: (
+      <p className="text-[16px] leading-relaxed">
+        {l(
+          `${crop.name.en} (${CATEGORY_LABEL[crop.category].en.toLowerCase()}) is ${crop.method === "transplant" ? "raised in a nursery and then transplanted" : crop.method === "both" ? "sown directly or transplanted" : "sown directly in the field"}. It takes about ${range(Math.min(...days), Math.max(...days))} days from sowing to harvest.`,
+          `${crop.name.mr} (${CATEGORY_LABEL[crop.category].mr}) ${crop.method === "transplant" ? "रोपवाटिकेत रोपे करून मग पुनर्लागवड केली जाते" : crop.method === "both" ? "थेट पेरणी किंवा पुनर्लागवड करून घेता येते" : "शेतात थेट पेरले जाते"}. पेरणीपासून काढणीपर्यंत साधारण ${range(Math.min(...days), Math.max(...days))} दिवस लागतात.`,
+        )}
+      </p>
+    ),
+    sow: (
+      <div className="space-y-2">
+        {crop.seasons.map((s, i) => (
+          <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-leaf-50 p-3">
+            <span>
+              <span className="block font-bold">{tx(seasonName(crop, i))}</span>
+              <span className="block text-sm">{ctx(s.sowingWindow)}</span>
+              <span className="block text-sm text-muted">{l(`${range(...s.durationDays)} days to harvest`, `काढणीपर्यंत ${range(...s.durationDays)} दिवस`)}</span>
+            </span>
+            {s.sowingMonths.includes(month) && <span className="shrink-0 rounded-full bg-leaf-700 px-3 py-1 text-sm font-semibold text-white">{l("Good time to sow now ✓", "आता पेरणीची योग्य वेळ ✓")}</span>}
+          </div>
+        ))}
+      </div>
+    ),
+    soil: <p className="text-[16px] leading-relaxed">{`${ctx(crop.soil)} ${ctx(crop.climate)}`}</p>,
+    seed: <p className="text-[16px] leading-relaxed">{`${ctx(crop.seedRate)} ${ctx(crop.spacing)}`}</p>,
+    nursery: (
+      <p className="text-[16px] leading-relaxed">
+        {l(
+          `Raise seedlings in a nursery for about ${num(crop.nurseryDays ?? 30)} days, then transplant them to the main field.`,
+          `साधारण ${num(crop.nurseryDays ?? 30)} दिवस रोपवाटिकेत रोपे वाढवा, मग मुख्य शेतात पुनर्लागवड करा.`,
+        )}
+      </p>
+    ),
+    irrigation: <p className="text-[16px] leading-relaxed">{ctx(crop.irrigation)}</p>,
+    nutrients: <p className="text-[16px] leading-relaxed">{ctx(crop.nutrientGuide)}</p>,
+    stages: <StageTimeline stages={crop.stages.map((stage) => ({ stage }))} />,
+    problems: (
+      <div className="space-y-3">
+        {crop.commonProblems.map((p) => (
+          <div key={p.name.en}>
+            <p className="font-bold">{tx(p.name)}</p>
+            <p className="text-[15px]">
+              <span className="font-semibold">{l("Signs: ", "लक्षणे: ")}</span>
+              {ctx(p.signs)}
+            </p>
+            <p className="text-[15px]">
+              <span className="font-semibold">{l("Prevention: ", "प्रतिबंध: ")}</span>
+              {ctx(p.prevention)}
+            </p>
+          </div>
+        ))}
+      </div>
+    ),
+    harvest: <p className="text-[16px]">{ctx(crop.harvestSigns)}</p>,
+    storage: (
+      <>
+        <p className="text-[16px]">{ctx(crop.postHarvest)}</p>
+        <p className="mt-2 text-[16px]">{ctx(crop.marketTips)}</p>
+      </>
+    ),
+  };
 
   return (
     <div className="pb-24">
       <PageHeader back="/crops?tab=library" title={`${crop.emoji} ${tx(crop.name)}`} sub={tx(CATEGORY_LABEL[crop.category])} />
       <NotVerified />
+      <div className="mt-3">
+        <ReadPageButton parts={parts} groupId={crop.id} />
+      </div>
 
-      <Section title={l("Overview", "थोडक्यात")} speak={overview}>
-        <p className="text-[16px] leading-relaxed">{overview}</p>
-      </Section>
-
-      <Section title={l("When to sow", "पेरणी कधी करावी")} speak={crop.seasons.map((s, i) => `${tx(seasonName(crop, i))}: ${tx(s.sowingWindow)}`).join(". ")}>
-        <div className="space-y-2">
-          {crop.seasons.map((s, i) => {
-            const now = s.sowingMonths.includes(month);
-            return (
-              <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-leaf-50 p-3">
-                <span>
-                  <span className="block font-bold">{tx(seasonName(crop, i))}</span>
-                  <span className="block text-sm">{tx(s.sowingWindow)}</span>
-                  <span className="block text-sm text-muted">{l(`${s.durationDays[0]}–${s.durationDays[1]} days to harvest`, `काढणीपर्यंत ${s.durationDays[0]}–${s.durationDays[1]} दिवस`)}</span>
-                </span>
-                {now && <span className="shrink-0 rounded-full bg-leaf-700 px-3 py-1 text-sm font-semibold text-white">{l("Good time to sow now ✓", "आता पेरणीची योग्य वेळ ✓")}</span>}
-              </div>
-            );
-          })}
-        </div>
-      </Section>
-
-      {sections.map((s) => (
-        <Section key={s.title} title={s.title} speak={s.body}>
-          <p className="text-[16px] leading-relaxed">{s.body}</p>
+      {keys.map((k) => (
+        <Section key={k} crop={crop} id={`${crop.id}:${k}`} title={title[k]} spoken={spoken(k)}>
+          {body[k]}
         </Section>
       ))}
-
-      <h2 className="mb-2 mt-6 text-lg font-bold">{l("Growth stages", "वाढीच्या अवस्था")}</h2>
-      <StageTimeline stages={crop.stages.map((stage) => ({ stage }))} />
-
-      <Section title={l("Common problems", "नेहमीच्या समस्या")} speak={crop.commonProblems.map((p) => `${tx(p.name)}. ${tx(p.signs)}. ${tx(p.prevention)}`).join(" ")}>
-        <div className="space-y-3">
-          {crop.commonProblems.map((p) => (
-            <div key={p.name.en}>
-              <p className="font-bold">{tx(p.name)}</p>
-              <p className="text-[15px]">
-                <span className="font-semibold">{l("Signs: ", "लक्षणे: ")}</span>
-                {tx(p.signs)}
-              </p>
-              <p className="text-[15px]">
-                <span className="font-semibold">{l("Prevention: ", "प्रतिबंध: ")}</span>
-                {tx(p.prevention)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </Section>
-      <Section title={l("Harvest signs", "काढणीची लक्षणे")} speak={tx(crop.harvestSigns)}>
-        <p className="text-[16px]">{tx(crop.harvestSigns)}</p>
-      </Section>
-      <Section title={l("Storage & selling tips", "साठवण व विक्री")} speak={`${tx(crop.postHarvest)} ${tx(crop.marketTips)}`}>
-        <p className="text-[16px]">{tx(crop.postHarvest)}</p>
-        <p className="mt-2 text-[16px]">{tx(crop.marketTips)}</p>
-      </Section>
 
       <p className="mt-4 text-sm text-muted">
         {l("Source: ", "स्रोत: ")}
@@ -122,12 +136,15 @@ export default function CropInfoPage() {
   );
 }
 
-function Section({ title, speak, children }: { title: string; speak: string; children: React.ReactNode }) {
+/** A card with its own speaker; highlighted while it is being read. */
+function Section({ id, title, spoken, children }: { crop: CropInfo; id: string; title: string; spoken: string; children: React.ReactNode }) {
+  const { speakingId } = useSpeech();
+  const reading = speakingId === id;
   return (
-    <Card className="mt-4">
+    <Card className={cx("mt-4 scroll-mt-20 transition-shadow", reading && "border-leaf-700 ring-4 ring-leaf-100")} aria-current={reading ? "true" : undefined}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-lg font-bold">{title}</h2>
-        <ReadAloud text={`${title}. ${speak}`} />
+        <SpeakButton id={id} text={spoken} label={title} />
       </div>
       {children}
     </Card>

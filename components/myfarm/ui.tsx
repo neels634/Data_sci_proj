@@ -7,7 +7,9 @@ import { getCrop } from "@/lib/crops";
 import { todayISO, type DueTask, type SprayStatus, type TaskOccurrence } from "@/lib/lifecycle";
 import type { ActivityType, CropStage, FarmCrop } from "@/lib/types";
 import { Badge, Button, Field, cx, inputCls } from "../ui";
-import { Input, ReadAloud, TextArea } from "../voice";
+import { Input, TextArea } from "../voice";
+import { SpeakButton } from "../speech";
+import { toAsciiDigits, toDevanagariDigits } from "@/lib/marathi-numbers";
 
 type B = { en: string; mr: string };
 
@@ -40,10 +42,13 @@ export function useFarm() {
   /** "12 Mar" (short, no year) */
   const short = (iso: string) => {
     const [y, m, d] = iso.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(store.state.lang === "mr" ? "mr-IN" : "en-IN", { day: "numeric", month: "short" });
+    return new Date(y, m - 1, d).toLocaleDateString(store.state.lang === "mr" ? "mr-IN-u-nu-deva" : "en-IN", { day: "numeric", month: "short" });
   };
-  const ago = (days: number) => (days <= 0 ? store.l("today", "आज") : days === 1 ? store.l("yesterday", "काल") : store.l(`${days} days ago`, `${days} दिवसांपूर्वी`));
-  return { ...store, today, cropOf, cropTitle, short, ago };
+  const ago = (days: number) =>
+    days <= 0 ? store.l("today", "आज") : days === 1 ? store.l("yesterday", "काल") : store.l(`${store.num(days)} days ago`, `${store.num(days)} दिवसांपूर्वी`);
+  /** library content text: like tx, but with Devanagari digits in Marathi (content is static, never user data) */
+  const ctx = (b: B) => (store.state.lang === "mr" ? toDevanagariDigits(b.mr) : b.en);
+  return { ...store, today, cropOf, cropTitle, short, ago, ctx };
 }
 
 export function NotVerified() {
@@ -53,7 +58,7 @@ export function NotVerified() {
 
 /** One task with Done and Skip. */
 export function TaskRow({ o, fc, showCrop, onLog }: { o: DueTask | TaskOccurrence; fc: FarmCrop; showCrop?: boolean; onLog: (o: TaskOccurrence) => void }) {
-  const { tx, l, short, cropOf, setTaskState } = useFarm();
+  const { tx, ctx, l, short, cropOf, setTaskState } = useFarm();
   const crop = cropOf(fc);
   const overdue = "overdue" in o && o.overdue;
   const a = ACTIVITY[o.task.type];
@@ -70,7 +75,7 @@ export function TaskRow({ o, fc, showCrop, onLog }: { o: DueTask | TaskOccurrenc
               {tx(fc.plotName) ? ` · ${tx(fc.plotName)}` : ""}
             </p>
           )}
-          <p className="text-[17px] font-bold leading-snug">{tx(o.task.title)}</p>
+          <p className="text-[17px] font-bold leading-snug">{ctx(o.task.title)}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
             {overdue ? <Badge tone="soil">{l(`Overdue · ${short(o.date)}`, `राहिलेले · ${short(o.date)}`)}</Badge> : <span>{short(o.date)}</span>}
           </p>
@@ -100,7 +105,8 @@ export function StageTimeline({
   daysLeft?: number;
   harvest?: { earliest: string; latest: string; estimate: boolean } | null;
 }) {
-  const { tx, l, short } = useFarm();
+  const { tx, ctx, l, short, num, state } = useFarm();
+  const mr = state.lang === "mr";
   const [open, setOpen] = useState<number | null>(currentIndex >= 0 ? currentIndex : null);
   return (
     <ol className="space-y-2">
@@ -108,8 +114,14 @@ export function StageTimeline({
         const past = currentIndex >= 0 && i < currentIndex;
         const now = i === currentIndex;
         const isOpen = open === i;
-        const range = start && end ? `${short(start)} – ${short(end)}` : l(`Day ${stage.startDay}–${stage.endDay}`, `दिवस ${stage.startDay}–${stage.endDay}`);
-        const speech = [tx(stage.name), tx(stage.whatHappens), ...stage.tasks.map((t) => tx(t.title)), ...stage.watchFor.map((w) => tx(w))].join(". ");
+        const range = start && end ? `${short(start)} – ${short(end)}` : l(`Day ${num(stage.startDay)}–${num(stage.endDay)}`, `दिवस ${num(stage.startDay)}–${num(stage.endDay)}`);
+        // spoken: "टप्पा 1: रोपवाटिका, दिवस 0 ते 45. …" — digits become Marathi words when read
+        const when = start && end ? (mr ? `${start} ते ${end}` : `${short(start)} to ${short(end)}`) : mr ? `दिवस ${stage.startDay} ते ${stage.endDay}` : `day ${stage.startDay} to ${stage.endDay}`;
+        const speech = [
+          `${mr ? "टप्पा" : "Stage"} ${i + 1}: ${tx(stage.name)}, ${when}. ${tx(stage.whatHappens)}`,
+          stage.tasks.length ? `${mr ? "काय करायचे" : "What to do"}: ${stage.tasks.map((t) => tx(t.title)).join(", ")}.` : "",
+          stage.watchFor.length ? `${mr ? "लक्ष ठेवा" : "Watch for"}: ${stage.watchFor.map((w) => tx(w)).join(", ")}.` : "",
+        ].join(" ");
         return (
           <li key={stage.key} className="relative pl-9">
             <span
@@ -134,7 +146,7 @@ export function StageTimeline({
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2 font-bold">
                   {tx(stage.name)}
-                  {now && <Badge tone="green">{daysLeft != null ? l(`You are here · ${daysLeft} days left`, `तुम्ही येथे · ${daysLeft} दिवस बाकी`) : l("You are here", "तुम्ही येथे")}</Badge>}
+                  {now && <Badge tone="green">{daysLeft != null ? l(`You are here · ${num(daysLeft)} days left`, `तुम्ही येथे · ${num(daysLeft)} दिवस बाकी`) : l("You are here", "तुम्ही येथे")}</Badge>}
                 </span>
                 <span className="block text-sm text-muted">{range}</span>
               </span>
@@ -143,8 +155,8 @@ export function StageTimeline({
             {isOpen && (
               <div className="mt-2 rounded-2xl bg-white p-3 text-[15px] shadow-[0_1px_2px_rgba(30,42,36,0.06)]">
                 <div className="flex items-start gap-2">
-                  <p className="flex-1">{tx(stage.whatHappens)}</p>
-                  <ReadAloud text={speech} />
+                  <p className="flex-1">{ctx(stage.whatHappens)}</p>
+                  <SpeakButton id={`stage:${stage.key}:${start ?? "lib"}`} text={speech} label={tx(stage.name)} />
                 </div>
                 {stage.tasks.length > 0 && (
                   <>
@@ -156,9 +168,9 @@ export function StageTimeline({
                             {ACTIVITY[t.type].icon}
                           </span>
                           <span>
-                            <span className="font-semibold">{tx(t.title)}</span>
-                            {t.repeatEveryDays ? <span className="text-muted"> · {l(`every ${t.repeatEveryDays} days`, `दर ${t.repeatEveryDays} दिवसांनी`)}</span> : null}
-                            <span className="block text-sm text-muted">{tx(t.detail)}</span>
+                            <span className="font-semibold">{ctx(t.title)}</span>
+                            {t.repeatEveryDays ? <span className="text-muted"> · {l(`every ${num(t.repeatEveryDays)} days`, `दर ${num(t.repeatEveryDays)} दिवसांनी`)}</span> : null}
+                            <span className="block text-sm text-muted">{ctx(t.detail)}</span>
                           </span>
                         </li>
                       ))}
@@ -170,7 +182,7 @@ export function StageTimeline({
                     <p className="mt-2 font-semibold">{l("Watch for", "लक्ष ठेवा")}</p>
                     <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm">
                       {stage.watchFor.map((w, k) => (
-                        <li key={k}>{tx(w)}</li>
+                        <li key={k}>{ctx(w)}</li>
                       ))}
                     </ul>
                   </>
@@ -329,10 +341,10 @@ export function LogActivitySheet({
               <p className="text-sm text-[#6b4708]">{l("Read these two numbers from the product label. They keep you and your buyers safe.", "हे दोन आकडे औषधाच्या लेबलवर वाचा. यामुळे तुम्ही व खरेदीदार सुरक्षित राहता.")}</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <Field label={l("Waiting days before harvest", "काढणीपूर्वी थांबायचे दिवस")} error={err.phi}>
-                  <Input className={inputCls} inputMode="numeric" value={phi} maxLength={3} onChange={(e) => setPhi(e.target.value.replace(/\D/g, ""))} />
+                  <Input className={inputCls} inputMode="numeric" value={phi} maxLength={3} onChange={(e) => setPhi(toAsciiDigits(e.target.value).replace(/\D/g, ""))} />
                 </Field>
                 <Field label={l("Hours before entering the field", "शेतात जाण्यापूर्वीचे तास")} error={err.rei}>
-                  <Input className={inputCls} inputMode="numeric" value={rei} maxLength={3} onChange={(e) => setRei(e.target.value.replace(/\D/g, ""))} />
+                  <Input className={inputCls} inputMode="numeric" value={rei} maxLength={3} onChange={(e) => setRei(toAsciiDigits(e.target.value).replace(/\D/g, ""))} />
                 </Field>
               </div>
             </div>
