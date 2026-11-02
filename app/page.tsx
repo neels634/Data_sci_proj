@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Lock, Mic, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
+import { ArrowRight, Lock, LogOut, Mic, Phone, ShieldCheck, Sprout, UserPlus } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { hashPin, type Account } from "@/lib/account";
 import { ROLE_HOME } from "@/components/AppShell";
@@ -24,10 +24,6 @@ export default function Login() {
   const [lockedUntil, setLockedUntil] = useState(0);
   const pinRef = useRef<HTMLInputElement>(null);
 
-  // already signed in → straight to the right home
-  useEffect(() => {
-    if (account) router.replace(ROLE_HOME[account.role]);
-  }, [account, router]);
 
   useEffect(() => {
     if (step === "pin") pinRef.current?.focus();
@@ -98,7 +94,32 @@ export default function Login() {
       </div>
 
       <div className="-mt-5 rounded-3xl border border-line bg-white p-5 shadow-sm">
-        {step === "mobile" ? (
+        {account ? (
+          <div className="py-2 text-center">
+            <h1 className="text-xl font-bold">{l(`Namaskar, ${account.name}`, `नमस्कार, ${account.name}`)}</h1>
+            <p className="mt-1 text-sm text-muted">
+              +91 {account.mobile.slice(0, 5)} {account.mobile.slice(5)} · {account.role}
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button full onClick={() => router.push(ROLE_HOME[account.role])} className="min-h-14 text-lg">
+                {l("Enter App / Dashboard", "ॲपमध्ये पुढे चला")} <ArrowRight size={20} />
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  setMobile("");
+                  setPin("");
+                  setFound(null);
+                  setStep("mobile");
+                }}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white font-semibold text-soil hover:bg-soil-100"
+              >
+                <LogOut size={16} /> {l("Log out / Switch account", "लॉग आउट करा / दुसरे खाते")}
+              </button>
+            </div>
+          </div>
+        ) : step === "mobile" ? (
           <form onSubmit={checkMobile} noValidate>
             <h1 className="text-xl font-bold">{l("Log in", "लॉग इन करा")}</h1>
             <p className="text-sm text-muted">{l("Use the mobile number you registered with.", "नोंदणी केलेला मोबाईल नंबर वापरा.")}</p>
