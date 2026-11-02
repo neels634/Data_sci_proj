@@ -28,10 +28,7 @@ const CATS: ("All" | SchemeCategory)[] = [
   "All",
   "Income support",
   "Crop insurance",
-  "Credit",
   "Irrigation",
-  "Women & SHG",
-  "Food processing",
 ];
 
 const ELIGIBILITY_STORAGE_KEY = "udyamsetu-scheme-eligibility-v1";
@@ -119,8 +116,12 @@ export default function Schemes() {
         />
       </div>
 
-      {/* Main Filter Tabs */}
-      <div className="mt-3 grid grid-cols-4 rounded-xl bg-sand p-1 text-center" role="tablist">
+      {/* Main Filter Tabs - Side by Side */}
+      <div
+        className="mt-3 flex w-full flex-row items-center justify-between gap-1 rounded-xl bg-sand p-1 text-center"
+        style={{ display: "flex", flexDirection: "row" }}
+        role="tablist"
+      >
         {[
           ["all", l("All", "सर्व")],
           ["eligible", `${l("Eligible", "पात्र")} (${eligibleCount})`],
@@ -132,8 +133,9 @@ export default function Schemes() {
             role="tab"
             aria-selected={view === v}
             onClick={() => setView(v as typeof view)}
+            style={{ flex: 1 }}
             className={cx(
-              "min-h-10 rounded-lg text-xs font-bold transition",
+              "flex-1 min-h-10 rounded-lg text-xs font-bold transition px-1 py-2 flex items-center justify-center whitespace-nowrap text-center",
               view === v
                 ? "bg-white text-leaf-900 shadow-sm"
                 : "text-muted hover:text-ink"
@@ -144,16 +146,16 @@ export default function Schemes() {
         ))}
       </div>
 
-      {/* Category Pills */}
-      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
+      {/* Category Pills: Exactly 4 Clean Types */}
+      <div className="mt-3 flex flex-row items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         {CATS.map((c) => (
           <button
             key={c}
             onClick={() => setCat(c)}
             className={cx(
-              "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-4 text-xs font-semibold transition shadow-xs",
+              "shrink-0 inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors",
               cat === c
-                ? "border-leaf-700 bg-leaf-700 text-white"
+                ? "border-leaf-700 bg-leaf-700 text-white shadow-xs"
                 : "border-line bg-white text-ink hover:bg-cream"
             )}
           >
