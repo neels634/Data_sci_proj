@@ -13,7 +13,7 @@ import { Input } from "@/components/voice";
 const MAX_TRIES = 5;
 
 export default function Login() {
-  const { state, account, l, setLang, login, toast } = useStore();
+  const { state, account, l, setLang, login, logout, toast } = useStore();
   const router = useRouter();
   const [step, setStep] = useState<"mobile" | "pin">("mobile");
   const [mobile, setMobile] = useState("");
