@@ -23,7 +23,9 @@ function spreadOrder<T>(items: T[]): T[] {
     .map((x) => x.item);
 }
 
-function renderHeatmap(features: SampleFeature[], boundary: PolygonGeometry, index: IndexId, scaleM: number) {
+type Rgb = [number, number, number];
+
+function renderHeatmap(features: SampleFeature[], boundary: PolygonGeometry, index: IndexId, scaleM: number, color: (value: number) => Rgb) {
   const project = ([lng, lat]: number[]) => L.CRS.EPSG3857.project(L.latLng(lat, lng));
   const outer = boundary.coordinates[0].map(project);
   const minX = Math.min(...outer.map((p) => p.x));
@@ -66,7 +68,7 @@ function renderHeatmap(features: SampleFeature[], boundary: PolygonGeometry, ind
       const p = project(f.geometry.coordinates);
       const x = toX(p.x);
       const y = toY(p.y);
-      const [r, g, b] = colorFor(index, f.properties[index] as number);
+      const [r, g, b] = color(f.properties[index] as number);
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
       gradient.addColorStop(0, `rgba(${r},${g},${b},${pass.alpha})`);
       gradient.addColorStop(0.55, `rgba(${r},${g},${b},${pass.alpha * 0.6})`);
@@ -87,23 +89,25 @@ type Props = {
   boundary: PolygonGeometry;
   index: IndexId;
   scaleM: number;
+  /** replaces the index's own colour scale; keep it stable between renders (useMemo) */
+  color?: (value: number) => Rgb;
 };
 
 /** Smooth vegetation heatmap, clipped to the field, drawn beneath the white boundary line. */
-export default function HeatmapLayer({ map, features, boundary, index, scaleM }: Props) {
+export default function HeatmapLayer({ map, features, boundary, index, scaleM, color }: Props) {
   useEffect(() => {
     if (!map.getPane(PANE)) {
       const pane = map.createPane(PANE);
       pane.style.zIndex = "350";
       pane.style.pointerEvents = "none";
     }
-    const rendered = renderHeatmap(features, boundary, index, scaleM);
+    const rendered = renderHeatmap(features, boundary, index, scaleM, color ?? ((value) => colorFor(index, value)));
     if (!rendered) return;
     const overlay = L.imageOverlay(rendered.url, rendered.bounds, { pane: PANE, opacity: 0.95, interactive: false }).addTo(map);
     return () => {
       overlay.remove();
     };
-  }, [map, features, boundary, index, scaleM]);
+  }, [map, features, boundary, index, scaleM, color]);
 
   return null;
 }

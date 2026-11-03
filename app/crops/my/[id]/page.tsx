@@ -40,6 +40,7 @@ import {
 } from "@/lib/lifecycle";
 import type { ActivityType, CropInfo, FarmCrop, StressObservation } from "@/lib/types";
 import { ACTIVITY, LogActivitySheet, NotVerified, SprayBanner, StageTimeline, TaskRow, useFarm } from "@/components/myfarm/ui";
+import { FieldCard } from "@/components/myfarm/FieldCard";
 import { Input } from "@/components/voice";
 import { SpeakButton } from "@/components/speech";
 import { ordinalMr, toAsciiDigits } from "@/lib/marathi-numbers";
@@ -200,7 +201,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
     }
     lines.push("");
     lines.push("AREA-LEVEL CONTEXT:");
-    lines.push("- Live Satellite/Weather: No live area sensor connected.");
+    lines.push("- Live Area Weather/Moisture: No live taluka-level feed connected.");
     lines.push("- Note: Area-level signals support awareness only; they do not prove plot-level damage or determine insurance eligibility.");
     lines.push("");
     lines.push("OFFICIAL NEXT STEPS & REPORTING:");
@@ -338,6 +339,8 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
           </>
         )}
       </div>
+
+      <FieldCard fc={fc} />
 
       {planned && (
         <>
@@ -550,7 +553,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
         {/* Strictly neutral illustrative text — NO numbers, NO gauges, NO colors */}
         <div className="rounded-xl bg-sand/50 p-3 text-xs text-muted leading-relaxed">
           <p className="font-semibold text-ink mb-1">
-            {l("No live satellite or weather sensor connected", "थेट उपग्रह किंवा हवामान सेन्सर जोडलेला नाही")}
+            {l("No live taluka-level weather or moisture feed connected", "तालुका पातळीवरील थेट हवामान किंवा ओलावा माहिती जोडलेली नाही")}
           </p>
           <p>
             {l(

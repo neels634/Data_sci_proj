@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type L from "leaflet";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Pencil, Play, RotateCcw, Satellite, TriangleAlert, Undo2, Upload, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Pencil, Play, RotateCcw, Satellite, TriangleAlert, Upload } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { INDICES, indexInfo, legendFor, polygonFromGeoJson, satelliteRequest, type AnalysisResult, type ClearDate, type IndexId, type PolygonGeometry, type SatelliteProblem } from "@/lib/satellite";
 import { cx, inputCls } from "@/components/ui";
 import { Input } from "@/components/voice";
+import DrawBar from "./DrawBar";
 import HeatmapLayer from "./HeatmapLayer";
 import LoadingOverlay, { STEP_COUNT } from "./LoadingOverlay";
 import MapView, { type MapHandle } from "./MapView";
@@ -196,24 +197,7 @@ export default function SatelliteAnalysis() {
         </div>
       </div>
 
-      {drawing && (
-        <div className="absolute inset-x-3 bottom-6 z-[900] mx-auto max-w-sm rounded-2xl bg-white p-3 shadow-2xl">
-          <p className="text-center text-sm font-semibold text-slate-800">
-            {drawPoints >= 3 ? l(`${drawPoints} corners marked`, `${drawPoints} कोपरे झाले`) : l("Tap at least 3 corners of your field", "शेताचे किमान 3 कोपरे दाबा")}
-          </p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => mapHandle.current?.cancelDrawing()} className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700">
-              <X size={15} /> {l("Cancel", "रद्द")}
-            </button>
-            <button type="button" onClick={() => mapHandle.current?.undoPoint()} disabled={drawPoints === 0} className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 disabled:opacity-40">
-              <Undo2 size={15} /> {l("Undo", "मागे")}
-            </button>
-            <button type="button" onClick={() => mapHandle.current?.finishDrawing()} disabled={drawPoints < 3} className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-emerald-700 text-sm font-semibold text-white disabled:opacity-40">
-              <Check size={15} /> {l("Finish", "पूर्ण")}
-            </button>
-          </div>
-        </div>
-      )}
+      {drawing && <DrawBar points={drawPoints} onCancel={() => mapHandle.current?.cancelDrawing()} onUndo={() => mapHandle.current?.undoPoint()} onFinish={() => mapHandle.current?.finishDrawing()} />}
 
       {panelShown && (
         <div ref={panel} className="absolute inset-x-3 bottom-6 z-[900] mx-auto max-h-[46dvh] max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl">

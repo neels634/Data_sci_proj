@@ -13,7 +13,6 @@ import {
   Loader2,
   PhoneCall,
   RefreshCw,
-  Satellite,
   Sparkles,
   Sun,
   Volume2,
@@ -21,6 +20,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import CropCheckFields from "@/components/satellite/CropCheckFields";
 import { Card, Badge, PageHeader, Button, DemoBadge, cx } from "@/components/ui";
 
 const CROP_TRANSLATIONS: Record<string, { en: string; mr: string }> = {
@@ -424,16 +424,7 @@ export default function CropCheckPage() {
       />
 
       {/* Satellite farm analysis */}
-      <Link href="/crop-check/satellite" className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3.5 shadow-sm">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-800">
-          <Satellite size={20} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-ink">{l("Check my whole field by satellite", "उपग्रहाने संपूर्ण शेत तपासा")}</span>
-          <span className="block text-xs text-muted">{l("Mark your field on the map to see which parts are doing well.", "नकाशावर शेत खुणा करा आणि कोणता भाग चांगला आहे ते पाहा.")}</span>
-        </span>
-        <ChevronRight size={18} className="shrink-0 text-muted" />
-      </Link>
+      <CropCheckFields />
 
       {/* Guide Banner */}
       <div className="flex items-center justify-between rounded-2xl border border-leaf-700/30 bg-leaf-50 p-3.5 shadow-sm">

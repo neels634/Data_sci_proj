@@ -51,6 +51,8 @@ class AnalysisError(HTTPException):
 class AnalyzeRequest(BaseModel):
     geometry: dict[str, Any]
     field_name: str = Field(default="Field 1", max_length=80)
+    # My Farm asks for a shorter window so a young crop isn't judged on images from before sowing
+    lookback_days: int = Field(default=LOOKBACK_DAYS, ge=7, le=LOOKBACK_DAYS)
 
 
 class DatesRequest(BaseModel):
@@ -150,14 +152,14 @@ def to_ee_geometry(polygon: dict[str, Any]) -> ee.Geometry:
 # ---- Earth Engine pipeline ---------------------------------------------------
 
 
-def _date_window() -> tuple[str, str]:
+def _date_window(days: int = LOOKBACK_DAYS) -> tuple[str, str]:
     today = datetime.now(timezone.utc).date()
     # filterDate's end is exclusive, so go one day past today to include it
-    return (today - timedelta(days=LOOKBACK_DAYS)).isoformat(), (today + timedelta(days=1)).isoformat()
+    return (today - timedelta(days=days)).isoformat(), (today + timedelta(days=1)).isoformat()
 
 
-def _scenes(region: ee.Geometry) -> ee.ImageCollection:
-    start, end = _date_window()
+def _scenes(region: ee.Geometry, days: int = LOOKBACK_DAYS) -> ee.ImageCollection:
+    start, end = _date_window(days)
     return ee.ImageCollection(S2_COLLECTION).filterBounds(region).filterDate(start, end)
 
 
@@ -240,17 +242,17 @@ def analyze(request: AnalyzeRequest) -> dict[str, Any]:
         area_m2 = region.area(maxError=1).getInfo()
         scale = choose_scale(area_m2)
 
-        scenes = _scenes(region)
+        scenes = _scenes(region, request.lookback_days)
         scene_count = scenes.size().getInfo()
         if scene_count == 0:
-            raise AnalysisError(404, "no_imagery", f"No Sentinel-2 images of this field in the last {LOOKBACK_DAYS} days.")
+            raise AnalysisError(404, "no_imagery", f"No Sentinel-2 images of this field in the last {request.lookback_days} days.")
 
         indices = add_indices(build_composite(scenes))
         # dropNulls (the default) leaves out pixels that were cloudy in every scene
         samples = indices.sample(region=region, scale=scale, geometries=True).limit(MAX_SAMPLE_POINTS).getInfo()
         features = [_clean_feature(f) for f in samples.get("features", [])]
         if not features:
-            raise AnalysisError(404, "no_clear_pixels", f"This field had no cloud-free view in the last {LOOKBACK_DAYS} days, or it's too small to measure.")
+            raise AnalysisError(404, "no_clear_pixels", f"This field had no cloud-free view in the last {request.lookback_days} days, or it's too small to measure.")
 
         stats = summarise(indices, region, scale)
     except AnalysisError:
@@ -258,7 +260,7 @@ def analyze(request: AnalyzeRequest) -> dict[str, Any]:
     except Exception as exc:
         raise _earth_engine_failure(exc) from exc
 
-    start, end = _date_window()
+    start, end = _date_window(request.lookback_days)
     return {
         "type": "FeatureCollection",
         "features": features,

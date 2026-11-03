@@ -148,7 +148,7 @@ const FAILURES: Record<string, Bi> = {
 export const SERVICE_DOWN = bi("The satellite service isn’t reachable right now. Try again shortly.", "उपग्रह सेवा सध्या उपलब्ध नाही. थोड्या वेळाने पुन्हा प्रयत्न करा.");
 
 /** A failure shown to the farmer; `retry` means trying the same field again could work. */
-export type SatelliteProblem = Bi & { retry?: boolean };
+export type SatelliteProblem = Bi & { retry?: boolean; code?: string };
 
 const TEMPORARY = new Set(["earth_engine_unavailable", "earth_engine_error"]);
 
@@ -170,7 +170,7 @@ export async function satelliteRequest<T>(path: "analyze" | "analyze-dates", bod
   if (!res.ok || !json) {
     const code = json?.detail?.code;
     const known = FAILURES[code];
-    throw (known ? { ...known, retry: TEMPORARY.has(code) } : { ...SERVICE_DOWN, retry: true }) satisfies SatelliteProblem;
+    throw (known ? { ...known, retry: TEMPORARY.has(code), code } : { ...SERVICE_DOWN, retry: true }) satisfies SatelliteProblem;
   }
   return json as T;
 }
