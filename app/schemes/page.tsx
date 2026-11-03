@@ -31,6 +31,17 @@ const CATS: ("All" | SchemeCategory)[] = [
   "Irrigation",
 ];
 
+/** Icon image path for each scheme category */
+const CATEGORY_ICON_IMG: Record<SchemeCategory, string> = {
+  "Income support": "/icons/income-support.png",
+  "Crop insurance": "/icons/crop-insurance.png",
+  "Credit": "/icons/credit.png",
+  "Irrigation": "/icons/irrigation.png",
+  "Mechanisation": "/icons/irrigation.png",
+  "Women & SHG": "/icons/women-shg.png",
+  "Food processing": "/icons/food-processing.png",
+};
+
 const ELIGIBILITY_STORAGE_KEY = "udyamsetu-scheme-eligibility-v1";
 
 export default function Schemes() {
@@ -190,89 +201,107 @@ export default function Schemes() {
             const isEligible = ev.status === "eligible";
             const needsCheck = ev.status === "check_needed";
             const isSaved = state.bookmarks.includes(s.id);
+            const iconSrc = CATEGORY_ICON_IMG[s.category];
 
             return (
-              <Card
+              <div
                 key={s.id}
-                className={cx(
-                  "flex flex-col gap-3 transition-shadow hover:shadow-md",
-                  isEligible
-                    ? "border-emerald-600/40 bg-emerald-50/20"
-                    : needsCheck
-                    ? "border-gold/40 bg-gold-100/15"
-                    : "border-line bg-white"
-                )}
+                className="rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
               >
-                {/* Header Row: Title & Bookmark */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      {isEligible ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 shadow-xs">
-                          <CheckCircle2 size={13} className="shrink-0" />
-                          <span>{l("Eligible to Apply", "तुम्ही पात्र आहात — अर्ज करा")}</span>
-                        </span>
-                      ) : needsCheck ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-bold text-[#6b4708] shadow-xs">
-                          <HelpCircle size={13} className="shrink-0" />
-                          <span>{l("Check For Me", "माझ्यासाठी तपासा")}</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sand px-2.5 py-0.5 text-xs font-semibold text-muted">
-                          {l("Not Eligible", "सध्या अपात्र")}
-                        </span>
-                      )}
-
-                      <Badge tone="green">{lbl(s.category)}</Badge>
-                      <Badge>{lbl(s.level)}</Badge>
-                      {state.tracker[s.id] && <Badge tone={statusTone(state.tracker[s.id])}>{lbl(state.tracker[s.id])}</Badge>}
+                {/* Card Header: Icon + Department + Status Badge + Bookmark */}
+                <div className="flex items-start justify-between gap-3 p-4 pb-0">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <img
+                      src={iconSrc}
+                      alt={s.category}
+                      width={44}
+                      height={44}
+                      className="shrink-0 rounded-xl object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium text-muted truncate leading-tight">
+                        {tx(s.department)}
+                      </p>
+                      <Link href={`/schemes/${s.id}`} className="group">
+                        <h3 className="text-[15px] font-bold leading-snug text-ink group-hover:text-leaf-700 mt-0.5">
+                          {tx(s.name)}
+                        </h3>
+                      </Link>
                     </div>
-
-                    <Link href={`/schemes/${s.id}`} className="group">
-                      <h3 className="text-base font-bold leading-snug text-ink group-hover:text-leaf-700">
-                        {tx(s.name)}
-                      </h3>
-                    </Link>
                   </div>
 
-                  <button
-                    onClick={() => toggleBookmark(s.id)}
-                    className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-cream transition"
-                    aria-label={isSaved ? l("Remove bookmark", "काढा") : l("Save scheme", "जतन करा")}
-                  >
-                    <Bookmark
-                      size={18}
-                      className={cx(
-                        isSaved ? "fill-leaf-700 text-leaf-700" : "text-muted hover:text-ink"
-                      )}
-                    />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Status Badge */}
+                    {isEligible ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                        <CheckCircle2 size={12} className="shrink-0" />
+                        {l("Eligible", "पात्र")}
+                      </span>
+                    ) : needsCheck ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                        <HelpCircle size={12} className="shrink-0" />
+                        {l("Check", "तपासा")}
+                      </span>
+                    ) : null}
+                    {/* Bookmark */}
+                    <button
+                      onClick={() => toggleBookmark(s.id)}
+                      className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-gray-100 transition"
+                      aria-label={isSaved ? l("Remove bookmark", "काढा") : l("Save scheme", "जतन करा")}
+                    >
+                      <Bookmark
+                        size={16}
+                        className={cx(
+                          isSaved ? "fill-leaf-700 text-leaf-700" : "text-gray-400 hover:text-ink"
+                        )}
+                      />
+                    </button>
+                  </div>
                 </div>
 
-                <p className="line-clamp-2 text-sm text-muted leading-relaxed">
+                {/* Description */}
+                <p className="line-clamp-2 text-[13px] text-gray-500 leading-relaxed px-4 mt-2">
                   {tx(s.summary)}
                 </p>
 
+                {/* Metadata Pills */}
+                <div className="flex flex-wrap gap-1.5 px-4 mt-3">
+                  <span className="inline-flex items-center gap-1 text-[11px] bg-gray-100 text-gray-600 font-medium px-2.5 py-1 rounded-md">
+                    {lbl(s.category)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] bg-gray-100 text-gray-600 font-medium px-2.5 py-1 rounded-md">
+                    {lbl(s.level)}
+                  </span>
+                  {s.benefits[0] && (
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-emerald-50 text-emerald-700 font-medium px-2.5 py-1 rounded-md">
+                      💰 {tx(s.benefits[0]).slice(0, 40)}{tx(s.benefits[0]).length > 40 ? "…" : ""}
+                    </span>
+                  )}
+                  {state.tracker[s.id] && (
+                    <Badge tone={statusTone(state.tracker[s.id])}>{lbl(state.tracker[s.id])}</Badge>
+                  )}
+                </div>
+
                 {/* Eligibility Explainer */}
                 {isEligible && ev.matchedCriteria.length > 0 && (
-                  <div className="rounded-xl bg-emerald-100/60 p-2.5 text-xs text-emerald-950">
+                  <div className="mx-4 mt-3 rounded-xl bg-emerald-50 p-2.5 text-xs text-emerald-800">
                     <p className="font-semibold flex items-center gap-1 mb-0.5">
                       <span>✓</span>
-                      <span>{l("Why you can apply:", "पात्रतेची कारणे:")}</span>
+                      <span>{l("Why you qualify:", "पात्रतेची कारणे:")}</span>
                     </p>
-                    <p className="text-emerald-900 leading-normal">
+                    <p className="leading-normal text-emerald-700">
                       {ev.matchedCriteria.map((c) => tx(c)).slice(0, 2).join(" • ")}
                     </p>
                   </div>
                 )}
 
                 {needsCheck && (
-                  <div className="rounded-xl bg-gold-100/60 p-2.5 text-xs text-[#6b4708]">
+                  <div className="mx-4 mt-3 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800">
                     <p className="font-semibold flex items-center gap-1 mb-0.5">
                       <span>🔍</span>
                       <span>{l("1-2 quick questions needed:", "१-२ सोपे प्रश्न बाकी:")}</span>
                     </p>
-                    <p className="leading-normal">
+                    <p className="leading-normal text-amber-700">
                       {l(
                         "Answer to verify if you qualify and get the direct 'Apply Here' link.",
                         "प्रश्नांची उत्तरे देऊन थेट अर्ज करण्याची लिंक मिळवा."
@@ -282,47 +311,45 @@ export default function Schemes() {
                 )}
 
                 {ev.status === "ineligible" && ev.unmatchedCriteria.length > 0 && (
-                  <div className="rounded-xl bg-soil-100/50 p-2 text-xs text-soil font-medium">
+                  <div className="mx-4 mt-3 rounded-xl bg-red-50 p-2 text-xs text-red-700 font-medium">
                     ⚠️ {tx(ev.unmatchedCriteria[0])}
                   </div>
                 )}
 
                 {/* Card Action Footer */}
-                <div className="flex items-center gap-2 pt-2 border-t border-line/60">
+                <div className="flex items-center gap-2 px-4 py-3 mt-3 border-t border-gray-100">
+                  <Link
+                    href={`/schemes/${s.id}`}
+                    className="text-sm font-semibold text-leaf-700 hover:underline"
+                  >
+                    {l("View Details", "माहिती पहा")}
+                  </Link>
+
+                  <div className="flex-1" />
+
                   {isEligible ? (
                     <a
                       href={ev.applyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 font-bold text-white text-sm shadow-sm hover:bg-emerald-800 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 transition"
                     >
-                      <Sparkles size={16} />
-                      <span>{l("Apply Here", "येथे अर्ज करा")}</span>
-                      <ExternalLink size={14} className="opacity-80" />
+                      <Sparkles size={14} />
+                      <span>{l("Apply Now", "अर्ज करा")}</span>
+                      <ExternalLink size={12} className="opacity-80" />
                     </a>
                   ) : needsCheck ? (
                     <Button
                       variant="primary"
                       onClick={() => setActiveCheckSchemeId(s.id)}
-                      className="flex-1 min-h-11 text-sm bg-leaf-700 hover:bg-leaf-800"
+                      className="rounded-xl text-sm bg-leaf-700 hover:bg-leaf-800 px-4 py-2"
                     >
-                      <HelpCircle size={16} />
-                      <span>{l("Check For Me", "माझ्यासाठी तपासा")}</span>
+                      <HelpCircle size={14} />
+                      <span>{l("Check Eligibility", "पात्रता तपासा")}</span>
                     </Button>
                   ) : null}
-
-                  <Link
-                    href={`/schemes/${s.id}`}
-                    className={cx(
-                      "flex min-h-11 items-center justify-center gap-1 rounded-xl border border-line bg-white px-3 text-xs font-semibold text-leaf-700 hover:bg-leaf-50 transition",
-                      !isEligible && !needsCheck ? "flex-1" : ""
-                    )}
-                  >
-                    <span>{l("Details", "माहिती")}</span>
-                    <ChevronRight size={14} />
-                  </Link>
                 </div>
-              </Card>
+              </div>
             );
           })
         )}
