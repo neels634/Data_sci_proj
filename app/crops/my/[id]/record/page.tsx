@@ -6,7 +6,7 @@ import { Sprout } from "lucide-react";
 import { Empty, PageHeader } from "@/components/ui";
 import { useFarm } from "@/components/myfarm/ui";
 import FieldRecord from "@/components/satellite/FieldRecord";
-import { getCrop } from "@/lib/crops";
+import { useCrop } from "@/lib/crops/load";
 
 export default function FieldRecordPage() {
   return (
@@ -20,10 +20,10 @@ function FieldRecordInner() {
   const scheme = useSearchParams().get("scheme");
   const { id } = useParams<{ id: string }>();
   const { state, hydrated, l } = useFarm();
-  if (!hydrated) return null;
   // only the signed-in farmer's crops are visible here
   const fc = state.myFarmCrops.find((c) => c.id === id);
-  const crop = fc ? getCrop(fc.cropId) : undefined;
+  const crop = useCrop(fc?.cropId ?? null);
+  if (!hydrated || (fc && crop === undefined)) return null;
   if (!fc || !crop)
     return (
       <div>

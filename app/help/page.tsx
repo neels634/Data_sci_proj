@@ -80,6 +80,12 @@ export default function Help() {
       <SectionTitle>{l("Read aloud", "वाचून दाखवणे")}</SectionTitle>
       <Card>
         <VoiceCheck />
+        <p className="mt-3 text-sm text-muted">
+          {l(
+            "Natural voice: the crop and task text being read (no phone number, address or full name) is sent to our voice provider (Sarvam AI or Google Gemini) to make the audio. The audio is kept on this phone so it can play again offline.",
+            "नैसर्गिक आवाज: वाचला जाणारा पीक व कामांचा मजकूर (फोन नंबर, पत्ता किंवा पूर्ण नाव नाही) आवाज तयार करण्यासाठी आमच्या आवाज-सेवा पुरवठादाराकडे (Sarvam AI किंवा Google Gemini) पाठवला जातो. हा आवाज या फोनवर ठेवला जातो, त्यामुळे पुन्हा इंटरनेटशिवाय ऐकता येतो.",
+          )}
+        </p>
       </Card>
 
       <SectionTitle>{l("Words explained", "शब्दांचे अर्थ")}</SectionTitle>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Briefcase, Landmark, MessagesSquare, Scale, Sprout, ScanEye } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { getCrop } from "@/lib/crops";
+import { useCrops } from "@/lib/crops/load";
 import { todayISO, todayTasks } from "@/lib/lifecycle";
 
 /** Farmer home: main options, including Crop Check and the Krishi Mitra farming assistant. */
@@ -12,7 +12,8 @@ export default function FarmerHome() {
   // a small count on Mandi Mitra when buyers have sent offers, so they aren't missed
   const offers = state.listings.filter((x) => isMine(x) && x.status === "Offer received").length;
   // My Farm: tasks due today (and overdue ones) across the farmer's crops
-  const farmTasks = todayTasks(state.myFarmCrops, getCrop, state.myTaskStates, todayISO()).length;
+  const farmLib = useCrops(state.myFarmCrops.map((c) => c.cropId));
+  const farmTasks = todayTasks(state.myFarmCrops, farmLib.get, state.myTaskStates, todayISO()).length;
 
   const tiles: { href: string; label: string; icon: React.ReactNode; tone: string; wide?: boolean; badge?: number; badgeLabel?: string }[] = [
     { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={36} strokeWidth={1.75} />, tone: "bg-emerald-100 text-emerald-800", wide: true },

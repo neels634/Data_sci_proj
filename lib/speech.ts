@@ -9,12 +9,13 @@
  * - Text is split into short chunks: Chrome cuts long utterances and some Android engines stop
  *   after ~15 s.
  * - Only one thing speaks at a time across the app; speech stops on route or language change.
- * - Optional: with NEXT_PUBLIC_TTS_CLOUD=1, Marathi with no device voice is synthesized by
- *   /api/tts (Google Cloud Text-to-Speech, key on the server) and played in an <audio> element.
+ * - With NEXT_PUBLIC_TTS_CLOUD=1 and "Natural voice" on, Marathi/Hindi use the online neural voice
+ *   (/api/tts → Sarvam Bulbul, key on the server) first. Clips are kept in Cache Storage so a
+ *   second play works offline; pre-generated clips (public/tts/manifest.json) are used first.
+ *   If the online voice fails or is slower than 4 s, the phone's voice is used for that playback.
  */
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useStore } from "./store";
-import { toSpokenMarathi } from "./marathi-numbers";
 
 export type SpeechLang = "en" | "mr" | "hi";
 export type VoiceQuality = "native" | "fallback-hindi" | "none";
@@ -65,51 +66,10 @@ export function pickVoice(lang: SpeechLang, voices: SpeechSynthesisVoice[]): { v
   return en ? { voice: en, quality: "native" } : { voice: null, quality: "none" };
 }
 
-// ---- text preparation ----------------------------------------------------------------------
+// ---- text preparation (lib/speech-text.ts, shared with scripts/pregen-tts.ts) ------------------
 
-/** Markdown symbols and emojis are never read out. */
-export function cleanForSpeech(text: string) {
-  return text
-    .replace(/[*#_`]/g, "")
-    .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}\u{20E3}]/gu, "")
-    .replace(/\s·\s/g, ", ")
-    .replace(/[ \t]+/g, " ")
-    .trim();
-}
-
-/** Split at sentence ends (। . ? ! newline) into chunks of at most ~180 characters. */
-export function chunkText(text: string, max = 180): string[] {
-  const sentences = text.split(/(?<=[।.?!])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
-  const out: string[] = [];
-  let cur = "";
-  const push = (s: string) => {
-    if (!s) return;
-    if (s.length <= max) return void out.push(s);
-    // a very long sentence: break at commas, then spaces
-    let rest = s;
-    while (rest.length > max) {
-      const cut = Math.max(rest.lastIndexOf(",", max), rest.lastIndexOf(" ", max));
-      const at = cut > max / 3 ? cut + 1 : max;
-      out.push(rest.slice(0, at).trim());
-      rest = rest.slice(at).trim();
-    }
-    if (rest) out.push(rest);
-  };
-  for (const s of sentences) {
-    if (cur && (cur + " " + s).length > max) {
-      push(cur);
-      cur = s;
-    } else cur = cur ? `${cur} ${s}` : s;
-  }
-  push(cur);
-  return out;
-}
-
-/** What a voice should actually say, in this language. */
-export function prepareSpeech(text: string, lang: SpeechLang) {
-  const clean = cleanForSpeech(text);
-  return lang === "mr" ? toSpokenMarathi(clean) : clean;
-}
+export { chunkText, cleanForSpeech, prepareSpeech } from "./speech-text";
+import { chunkText, cloudChunks, prepareSpeech } from "./speech-text";
 
 // ---- one speaker for the whole app -----------------------------------------------------------
 
@@ -130,6 +90,8 @@ const speakingIdNow = () => current?.id ?? null;
 
 /** Stop whatever is speaking, anywhere in the app. */
 export function stopSpeech() {
+  generation++;
+  setLoading(null);
   const c = current;
   current = null;
   c?.controller.stop();
@@ -157,22 +119,51 @@ function makeController(stopImpl: () => void): SpeechController & { finish(): vo
   };
 }
 
-export type SpeakResult = { ok: true; controller: SpeechController; quality: VoiceQuality } | { ok: false; reason: "unsupported" | "no-marathi-voice" | "error"; quality: VoiceQuality };
+export type SpeakResult =
+  | { ok: true; controller: SpeechController; quality: VoiceQuality; source: AudioSource; fellBack: boolean; busy?: boolean }
+  | { ok: false; reason: "unsupported" | "no-marathi-voice" | "error"; quality: VoiceQuality; fellBack: boolean; busy?: boolean };
 
-/** Speak `text` in `lang`. Cancels anything already speaking. */
-export async function speak(text: string, lang: SpeechLang, opts: { id?: string } = {}): Promise<SpeakResult> {
+/** Where the audio came from: pre-generated file, this phone's cache, the server, or the phone's own voice. */
+export type AudioSource = "manifest" | "cache" | "network" | "phone";
+export interface SpeakInfo {
+  source: AudioSource;
+  /** tap → first sound, in ms */
+  firstAudioMs: number;
+}
+
+let generation = 0;
+
+/**
+ * Speak `text` in `lang`. Cancels anything already speaking. Resolves once audio has started (or
+ * failed). Marathi and Hindi use the online neural voice first when `cloud` is on, then the phone's
+ * Marathi voice, then its Hindi voice; never an English voice.
+ */
+export async function speak(text: string, lang: SpeechLang, opts: { id?: string; cloud?: boolean; onInfo?: (i: SpeakInfo) => void } = {}): Promise<SpeakResult> {
   stopSpeech();
+  const gen = ++generation;
+  const t0 = performance.now();
+  const id = opts.id ?? null;
+  const spoken = prepareSpeech(text, lang);
+  let fellBack = false;
+  let busy = false;
+  if (!spoken) return { ok: false, reason: "error", quality: "none", fellBack };
+
+  if (lang !== "en" && CLOUD_TTS && opts.cloud !== false) {
+    setLoading(id);
+    const r = await speakCloud(spoken, lang, id, gen, t0, opts.onInfo);
+    if (gen !== generation) return { ok: false, reason: "error", quality: "native", fellBack };
+    setLoading(null);
+    if (r && r !== "busy") return { ok: true, controller: r, quality: "native", source: "network", fellBack };
+    fellBack = true;
+    busy = r === "busy";
+  }
+
   const voices = await loadVoices();
   const { voice, quality } = pickVoice(lang, voices);
-  const spoken = prepareSpeech(text, lang);
-  if (!spoken) return { ok: false, reason: "error", quality };
-
   // never read Marathi (or Hindi) with an English voice
-  if ((lang === "mr" || lang === "hi") && quality === "none") {
-    if (CLOUD_TTS && lang === "mr") return speakCloud(spoken, lang, opts.id ?? null, quality);
-    return { ok: false, reason: "no-marathi-voice", quality };
-  }
-  if (!supported()) return { ok: false, reason: "unsupported", quality };
+  if ((lang === "mr" || lang === "hi") && quality === "none") return { ok: false, reason: "no-marathi-voice", quality, fellBack, busy };
+  if (!supported()) return { ok: false, reason: "unsupported", quality, fellBack, busy };
+  if (gen !== generation) return { ok: false, reason: "error", quality, fellBack, busy };
 
   const synth = window.speechSynthesis;
   synth.cancel();
@@ -186,69 +177,228 @@ export async function speak(text: string, lang: SpeechLang, opts: { id?: string 
     } else u.lang = lang === "en" ? "en-IN" : `${lang}-IN`;
     u.rate = 0.9;
     u.pitch = 1;
+    if (i === 0) u.onstart = () => opts.onInfo?.({ source: "phone", firstAudioMs: Math.round(performance.now() - t0) });
     if (i === chunks.length - 1) u.onend = () => controller.finish();
     u.onerror = (e) => {
       if (e.error !== "interrupted" && e.error !== "canceled") controller.finish();
     };
     synth.speak(u);
   });
-  current = { id: opts.id ?? null, controller };
-  controller.onEnd(() => {
-    if (current?.controller === controller) {
-      current = null;
-      emit();
-    }
-  });
-  emit();
-  return { ok: true, controller, quality };
+  track(id, controller);
+  return { ok: true, controller, quality, source: "phone", fellBack, busy };
 }
 
-/** Cloud voice (optional): /api/tts returns audio for up to 1,000 characters at a time. */
-async function speakCloud(spoken: string, lang: SpeechLang, id: string | null, quality: VoiceQuality): Promise<SpeakResult> {
-  const parts: string[] = [];
-  let cur = "";
-  for (const c of chunkText(spoken, 180)) {
-    if ((cur + " " + c).length > 950) {
-      parts.push(cur);
-      cur = c;
-    } else cur = cur ? `${cur} ${c}` : c;
-  }
-  if (cur) parts.push(cur);
-  const audio = new Audio();
-  let stopped = false;
-  const controller = makeController(() => {
-    stopped = true;
-    audio.pause();
-  });
+function track(id: string | null, controller: SpeechController) {
   current = { id, controller };
-  emit();
   controller.onEnd(() => {
     if (current?.controller === controller) {
       current = null;
       emit();
     }
   });
-  (async () => {
-    for (const text of parts) {
-      if (stopped) return;
+  emit();
+}
+
+// ---- loading state (tap → first audio) --------------------------------------------------------
+
+let loadingId: string | null = null;
+function setLoading(id: string | null) {
+  if (loadingId === id) return;
+  loadingId = id;
+  emit();
+}
+const loadingIdNow = () => loadingId;
+
+// ---- online neural voice (/api/tts) ------------------------------------------------------------
+
+// defaults; the server's provider sets its own (Gemini: 800 characters, 6 s)
+const FIRST_CHUNK_MS = 4000;
+const CLOUD_CHUNK = 600;
+const CACHE_NAME = "shet-tts-v1";
+const CACHE_MAX_ENTRIES = 300;
+const CACHE_MAX_BYTES = 40 * 1024 * 1024;
+const INDEX_KEY = "shet-tts-index"; // [{ k, n }] oldest first: cache key and size
+const VOICE_KEY = "shet-tts-voice:"; // last known server voice per language, for offline replay
+const STATIC_BASE = process.env.NEXT_PUBLIC_TTS_STATIC_BASE || "/tts";
+
+let sharedAudio: HTMLAudioElement | null = null;
+const audioEl = () => (sharedAudio ??= new Audio());
+
+/** Same key as scripts/pregen-tts.ts: sha256 of "voice\nlang\ntext", hex. */
+export async function clipKey(voice: string, lang: SpeechLang, text: string): Promise<string | null> {
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${voice}\n${lang}\n${text}`));
+    return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+
+type CloudVoice = { voice: string; chunkChars: number; firstChunkMs: number };
+const voiceIds = new Map<SpeechLang, CloudVoice>();
+/** The server's voice (provider|model|speaker), so clips of an old voice are never replayed, and its chunking. */
+export async function cloudVoice(lang: SpeechLang): Promise<CloudVoice | null> {
+  if (voiceIds.has(lang)) return voiceIds.get(lang)!;
+  let saved: CloudVoice | null = null;
+  try {
+    const raw = localStorage.getItem(VOICE_KEY + lang);
+    if (raw) saved = raw.startsWith("{") ? JSON.parse(raw) : { voice: raw, chunkChars: CLOUD_CHUNK, firstChunkMs: FIRST_CHUNK_MS };
+  } catch {}
+  if (!navigator.onLine) return saved;
+  try {
+    const res = await fetch(`/api/tts?lang=${lang}`, { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return null;
+    const j = (await res.json()) as Partial<CloudVoice>;
+    if (!j.voice) return null;
+    const v: CloudVoice = { voice: j.voice, chunkChars: j.chunkChars ?? CLOUD_CHUNK, firstChunkMs: j.firstChunkMs ?? FIRST_CHUNK_MS };
+    voiceIds.set(lang, v);
+    try {
+      localStorage.setItem(VOICE_KEY + lang, JSON.stringify(v));
+    } catch {}
+    return v;
+  } catch {
+    return saved;
+  }
+}
+
+let manifest: Promise<Record<string, string>> | null = null;
+const loadManifest = () =>
+  (manifest ??= fetch(`${STATIC_BASE}/manifest.json`)
+    .then((r) => (r.ok ? (r.json() as Promise<{ files?: Record<string, string> }>) : {}))
+    .then((m: { files?: Record<string, string> }) => m.files ?? {})
+    .catch((): Record<string, string> => ({})));
+
+async function cacheGet(key: string): Promise<Blob | null> {
+  try {
+    const c = await caches.open(CACHE_NAME);
+    const hit = await c.match(`/__tts/${key}`);
+    return hit ? await hit.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function cachePut(key: string, blob: Blob) {
+  try {
+    const c = await caches.open(CACHE_NAME);
+    await c.put(`/__tts/${key}`, new Response(blob, { headers: { "Content-Type": blob.type || "audio/mpeg" } }));
+    let index: { k: string; n: number }[] = [];
+    try {
+      index = JSON.parse(localStorage.getItem(INDEX_KEY) ?? "[]");
+    } catch {}
+    index = [...index.filter((e) => e.k !== key), { k: key, n: blob.size }];
+    let total = index.reduce((a, e) => a + e.n, 0);
+    while (index.length > CACHE_MAX_ENTRIES || total > CACHE_MAX_BYTES) {
+      const old = index.shift()!;
+      total -= old.n;
+      await c.delete(`/__tts/${old.k}`);
+    }
+    localStorage.setItem(INDEX_KEY, JSON.stringify(index));
+  } catch {}
+}
+
+/** One clip: pre-generated file → phone cache → server. */
+async function fetchClip(text: string, lang: SpeechLang, voice: string, signal: AbortSignal): Promise<{ blob: Blob; source: AudioSource }> {
+  const key = await clipKey(voice, lang, text);
+  if (key) {
+    const file = (await loadManifest())[key];
+    const cached = await cacheGet(key);
+    if (cached) return { blob: cached, source: file ? "manifest" : "cache" };
+    if (file) {
+      const res = await fetch(`${STATIC_BASE}/${file}`, { signal }).catch(() => null);
+      if (res?.ok) {
+        const blob = await res.blob();
+        void cachePut(key, blob);
+        return { blob, source: "manifest" };
+      }
+    }
+  }
+  if (!navigator.onLine) throw new Error("offline");
+  const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, lang }), signal });
+  if (!res.ok) throw new Error(res.status === 429 ? "busy" : String(res.status));
+  const blob = await res.blob();
+  if (key) void cachePut(key, blob);
+  return { blob, source: "network" };
+}
+
+/**
+ * Plays prepared text with the online voice: chunk 1 first, chunk 2 fetched while 1 plays (never
+ * more than 2 requests in flight). Returns null (or "busy" on 429) — so the caller uses the phone's
+ * voice — when chunk 1 fails or takes longer than the provider's wait (4 s Sarvam, 6 s Gemini).
+ */
+async function speakCloud(spoken: string, lang: SpeechLang, id: string | null, gen: number, t0: number, onInfo?: (i: SpeakInfo) => void): Promise<SpeechController | "busy" | null> {
+  const cv = await cloudVoice(lang);
+  if (!cv) return null;
+  const { voice } = cv;
+  const parts = cloudChunks(spoken, cv.chunkChars);
+  const abort = new AbortController();
+  const get = (i: number) => fetchClip(parts[i], lang, voice, abort.signal);
+  if (!navigator.onLine) {
+    // offline: only when every part is already on the phone, so playback never stops halfway
+    const files = await loadManifest();
+    const have = await Promise.all(parts.map(async (p) => {
+      const k = await clipKey(voice, lang, p);
+      return !!k && (!!(await cacheGet(k)) || !!files[k]);
+    }));
+    if (!have.every(Boolean)) return null;
+  }
+  let first: { blob: Blob; source: AudioSource };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    first = await Promise.race([get(0), new Promise<never>((_, rej) => (timer = setTimeout(() => rej(new Error("slow")), cv.firstChunkMs)))]);
+  } catch (e) {
+    abort.abort();
+    return (e as Error).message === "busy" ? "busy" : null;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (gen !== generation) {
+    abort.abort();
+    return null;
+  }
+
+  const audio = audioEl();
+  let stopped = false;
+  let wake: (() => void) | null = null;
+  const controller = makeController(() => {
+    stopped = true;
+    abort.abort();
+    audio.pause();
+    wake?.();
+  });
+  track(id, controller);
+
+  void (async () => {
+    let clip = first;
+    let next = parts.length > 1 ? get(1) : null;
+    next?.catch(() => {});
+    for (let i = 0; i < parts.length && !stopped; i++) {
+      const url = URL.createObjectURL(clip.blob);
       try {
-        const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, lang }) });
-        if (!res.ok) throw new Error(String(res.status));
-        const url = URL.createObjectURL(await res.blob());
-        if (stopped) return URL.revokeObjectURL(url);
         audio.src = url;
         await audio.play();
+        if (i === 0) onInfo?.({ source: clip.source, firstAudioMs: Math.round(performance.now() - t0) });
         await new Promise<void>((r) => {
-          audio.onended = audio.onpause = () => r();
+          wake = r;
+          audio.onended = audio.onerror = () => r();
         });
+      } catch {
+        stopped = true;
+      } finally {
         URL.revokeObjectURL(url);
+      }
+      if (stopped || !next) break;
+      try {
+        clip = await next;
       } catch {
         break;
       }
+      next = i + 2 < parts.length ? get(i + 2) : null;
+      next?.catch(() => {});
     }
     controller.finish();
   })();
-  return { ok: true, controller, quality };
+  return controller;
 }
 
 // ---- voice help (the sheet is rendered by <VoiceHelpHost/> in the app shell) ------------------
@@ -297,6 +447,9 @@ const voiceSubscribe = (l: () => void) => {
   };
 };
 
+let fallbackToastShown = false;
+let busyToastShown = false;
+
 // ---- React hook ------------------------------------------------------------------------------
 
 /**
@@ -308,6 +461,7 @@ export function useSpeech() {
   const { state, l, toast, markVoiceTip } = useStore();
   const appLang: SpeechLang = state.lang === "mr" ? "mr" : "en";
   const speakingId = useSyncExternalStore(subscribe, speakingIdNow, () => null);
+  const loadingId = useSyncExternalStore(subscribe, loadingIdNow, () => null);
   const quality = useVoiceQuality(appLang);
   const mine = useRef(new Set<string>());
   const queue = useRef(0);
@@ -324,7 +478,14 @@ export function useSpeech() {
   const run = useCallback(
     async (id: string, text: string, lang: SpeechLang): Promise<boolean> => {
       mine.current.add(id);
-      const r = await speak(text, lang, { id });
+      const r = await speak(text, lang, { id, cloud: state.naturalVoice });
+      if (r.busy && !busyToastShown) {
+        busyToastShown = true;
+        toast({ en: "Online voice is busy", mr: "ऑनलाइन आवाज सध्या व्यस्त आहे" });
+      } else if (r.fellBack && !r.busy && !fallbackToastShown) {
+        fallbackToastShown = true;
+        toast({ en: "Online voice unavailable, using phone voice", mr: "ऑनलाइन आवाज उपलब्ध नाही, फोनचा आवाज वापरत आहे" });
+      }
       if (!r.ok) {
         if (r.reason === "no-marathi-voice") {
           if (!state.voiceHelpDismissed) openVoiceHelp("none");
@@ -338,13 +499,13 @@ export function useSpeech() {
       }
       return new Promise((res) => r.controller.onEnd(() => res(true)));
     },
-    [state.voiceHelpDismissed, state.voiceTipSeen, toast, markVoiceTip],
+    [state.voiceHelpDismissed, state.voiceTipSeen, state.naturalVoice, toast, markVoiceTip],
   );
 
   const speakOne = useCallback(
     (id: string, text: string, lang: SpeechLang = appLang) => {
       queue.current++;
-      if (speakingIdNow() === id) return stopSpeech();
+      if (speakingIdNow() === id || loadingIdNow() === id) return stopSpeech();
       void run(id, text, lang);
     },
     [appLang, run],
@@ -371,6 +532,8 @@ export function useSpeech() {
     supported: typeof window === "undefined" ? true : supported() || CLOUD_TTS,
     speaking: speakingId !== null,
     speakingId,
+    /** tapped, waiting for the first audio */
+    loadingId,
     quality,
     /** Marathi can't be spoken on this device (and no cloud voice) */
     unavailable: appLang === "mr" && quality === "none" && !CLOUD_TTS,

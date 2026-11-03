@@ -2,9 +2,9 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookOpenText, Square, Volume2, VolumeX, X } from "lucide-react";
+import { BookOpenText, LoaderCircle, Square, Volume2, VolumeX, X } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { onVoiceHelp, openVoiceHelp, speak, stopSpeech, useSpeech, useVoiceQuality, type VoiceHelpKind } from "@/lib/speech";
+import { CLOUD_TTS, onVoiceHelp, openVoiceHelp, speak, stopSpeech, useSpeech, useVoiceQuality, type VoiceHelpKind } from "@/lib/speech";
 import { Button, cx } from "./ui";
 
 /**
@@ -12,8 +12,9 @@ import { Button, cx } from "./ui";
  * unavailable (no Marathi voice on the phone — tap for help). Reads in the app's language.
  */
 export function SpeakButton({ id, text, label, className, size = "md" }: { id: string; text: string | (() => string); label?: string; className?: string; size?: "sm" | "md" }) {
-  const { speak: say, speakingId, unavailable, l } = useSpeech();
+  const { speak: say, speakingId, loadingId, unavailable, l } = useSpeech();
   const speaking = speakingId === id;
+  const loading = loadingId === id;
   const name = label ?? l("Read aloud", "वाचून दाखवा");
   const dim = size === "sm" ? "size-10" : "size-12";
   if (unavailable)
@@ -32,8 +33,9 @@ export function SpeakButton({ id, text, label, className, size = "md" }: { id: s
     <button
       type="button"
       onClick={() => say(id, typeof text === "function" ? text() : text)}
-      aria-pressed={speaking}
-      aria-label={speaking ? l("Stop reading", "वाचन थांबवा") : name}
+      aria-pressed={speaking || loading}
+      aria-busy={loading}
+      aria-label={speaking || loading ? l("Stop reading", "वाचन थांबवा") : name}
       title={speaking ? l("Stop reading", "वाचन थांबवा") : name}
       className={cx(
         "grid shrink-0 place-items-center rounded-full transition-colors",
@@ -42,15 +44,15 @@ export function SpeakButton({ id, text, label, className, size = "md" }: { id: s
         className,
       )}
     >
-      {speaking ? <Square size={16} fill="currentColor" /> : <Volume2 size={22} />}
+      {loading ? <LoaderCircle size={20} className="animate-spin" /> : speaking ? <Square size={16} fill="currentColor" /> : <Volume2 size={22} />}
     </button>
   );
 }
 
 /** "Read whole page": reads the parts in order; the part being read is `speakingId`. */
 export function ReadPageButton({ parts, groupId = "page" }: { parts: { id: string; text: string }[]; groupId?: string }) {
-  const { speakAll, stop, speakingId, unavailable, l } = useSpeech();
-  const reading = !!speakingId && parts.some((p) => p.id === speakingId);
+  const { speakAll, stop, speakingId, loadingId, unavailable, l } = useSpeech();
+  const reading = parts.some((p) => p.id === speakingId || p.id === loadingId);
   if (unavailable)
     return (
       <Button variant="secondary" full className="min-h-12" onClick={() => openVoiceHelp("none")}>
@@ -65,11 +67,26 @@ export function ReadPageButton({ parts, groupId = "page" }: { parts: { id: strin
   );
 }
 
+function useOnline() {
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const up = () => setOnline(navigator.onLine);
+    up();
+    window.addEventListener("online", up);
+    window.addEventListener("offline", up);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", up);
+    };
+  }, []);
+  return online;
+}
+
 const TEST_PHRASE = "नमस्कार, मी मराठीत बोलतो. एक, दोन, तीन.";
 
 /** Plays the test phrase in Marathi. */
 export function TestVoiceButton({ className }: { className?: string }) {
-  const { l, toast } = useStore();
+  const { state, l, toast } = useStore();
   const [busy, setBusy] = useState(false);
   return (
     <Button
@@ -78,7 +95,7 @@ export function TestVoiceButton({ className }: { className?: string }) {
       disabled={busy}
       onClick={async () => {
         setBusy(true);
-        const r = await speak(TEST_PHRASE, "mr", { id: "voice-test" });
+        const r = await speak(TEST_PHRASE, "mr", { id: "voice-test", cloud: state.naturalVoice });
         if (!r.ok) {
           setBusy(false);
           toast({ en: "No Marathi or Hindi voice found on this phone yet.", mr: "या फोनमध्ये अजून मराठी किंवा हिंदी आवाज नाही." });
@@ -90,12 +107,15 @@ export function TestVoiceButton({ className }: { className?: string }) {
   );
 }
 
-/** Voice status row for Profile and Help. */
+/** Voice status row for Profile and Help: current mode, natural-voice switch, preview. */
 export function VoiceCheck() {
-  const { l } = useStore();
+  const { state, l, setNaturalVoice } = useStore();
   const q = useVoiceQuality("mr");
-  const text =
-    q === "native"
+  const online = useOnline();
+  const natural = CLOUD_TTS && state.naturalVoice && online;
+  const text = natural
+    ? l("Natural voice (online)", "नैसर्गिक आवाज (ऑनलाइन)")
+    : q === "native"
       ? l("Marathi voice available", "मराठी आवाज उपलब्ध")
       : q === "fallback-hindi"
         ? l("Using a Hindi voice for Marathi", "हिंदी आवाज वापरत आहे")
@@ -106,11 +126,20 @@ export function VoiceCheck() {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="font-bold">{l("Voice check", "आवाज तपासणी")}</p>
-        <p className={cx("text-sm", q === "native" ? "text-leaf-700" : q === "none" ? "text-soil" : "text-muted")}>{text}</p>
+        <p className={cx("text-sm", natural || q === "native" ? "text-leaf-700" : q === "none" ? "text-soil" : "text-muted")}>{text}</p>
       </div>
+      {CLOUD_TTS && (
+        <label className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4">
+          <span>
+            <span className="block font-semibold">{l("Natural voice (needs internet)", "नैसर्गिक आवाज (इंटरनेट लागते)")}</span>
+            <span className="block text-sm text-muted">{l("Without internet, the phone's voice is used.", "इंटरनेट नसल्यास फोनचा आवाज वापरला जातो.")}</span>
+          </span>
+          <input type="checkbox" role="switch" className="size-6 shrink-0 accent-leaf-700" checked={state.naturalVoice} onChange={(e) => setNaturalVoice(e.target.checked)} />
+        </label>
+      )}
       <div className="flex gap-2">
         <TestVoiceButton />
-        {q && q !== "native" && (
+        {!natural && q && q !== "native" && (
           <Button variant="ghost" className="min-h-12" onClick={() => openVoiceHelp(q === "none" ? "none" : "fallback-hindi")}>
             {l("How to fix", "उपाय")}
           </Button>

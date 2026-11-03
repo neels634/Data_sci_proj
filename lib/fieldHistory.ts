@@ -3,7 +3,7 @@
  * was seen and when, never why: a fall could be drought, pests, a cut crop or the natural end of the
  * season. The cut-off below is a product choice, not an agronomic or insurance standard.
  */
-import { addDays, anchorDate, scaledStages } from "./lifecycle.ts";
+import { addDays, planOf } from "./lifecycle.ts";
 import type { FieldHistory, HistoryPeriod } from "./satellite";
 import type { CropInfo, FarmCrop } from "./types";
 
@@ -23,10 +23,9 @@ export type HistoryReading =
 
 /** The date the crop's last stage begins, when greenness falling is expected. */
 export function lastStageStart(fc: FarmCrop, crop: CropInfo): string | null {
-  const start = anchorDate(fc);
-  if (!start) return null;
-  const stages = scaledStages(fc, crop);
-  return addDays(start, stages[stages.length - 1].startDay);
+  const { anchor, stages } = planOf(fc, crop);
+  if (!anchor || !stages.length) return null;
+  return addDays(anchor, stages[stages.length - 1].startDay);
 }
 
 /** Finds the biggest clear fall between one clear period and the next, skipping cloudy ones. */

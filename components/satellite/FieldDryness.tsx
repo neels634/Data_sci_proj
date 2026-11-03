@@ -8,7 +8,7 @@ import { useFarm } from "@/components/myfarm/ui";
 import { SpeakButton } from "@/components/speech";
 import { Button, Card, Note, PageHeader, cx } from "@/components/ui";
 import { drynessLevel, drynessLines, readMoisture, readRain, type DrynessLevel, type DrynessResult } from "@/lib/dryness";
-import { getCrop } from "@/lib/crops";
+import { cropEntry } from "@/lib/crops";
 import { fieldReadiness, type Side } from "@/lib/fieldHealth";
 import { satelliteRequest, type SatelliteProblem } from "@/lib/satellite";
 import type { FarmCrop } from "@/lib/types";
@@ -78,7 +78,7 @@ export default function FieldDryness() {
           const label = (
             <>
               <span className="text-xl" aria-hidden="true">
-                {getCrop(fc.cropId)?.emoji}
+                {cropEntry(fc.cropId)?.emoji}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold text-ink">{tx(fc.plotName) || cropTitle(fc)}</span>

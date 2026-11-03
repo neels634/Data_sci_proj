@@ -170,14 +170,42 @@ screen show in Devanagari digits. Marathi is read by a Marathi voice, else a Hin
 English one; with no Indic voice the app shows how to install the Marathi voice (Android). The voice
 status and a Test voice button are on Profile and Help.
 
-Optional cloud voice for phones without any Marathi/Hindi voice (Google Cloud Text-to-Speech, mr-IN):
+### Natural Marathi voice (Sarvam AI Bulbul or Gemini)
+
+With `NEXT_PUBLIC_TTS_CLOUD=1` and the profile switch **Natural voice** on (default), Marathi and
+Hindi are read by a neural voice from `/api/tts`; otherwise, offline, or if the first clip fails or
+takes more than 4 s (6 s with Gemini), the phone's Marathi voice (then Hindi) is used and a toast says so once.
+Order of sources for each clip: `public/tts/manifest.json` (pre-generated) → the phone's Cache
+Storage (`shet-tts-v1`, ~300 clips / 40 MB) → `/api/tts`. A second play works in airplane mode.
+Only crop/task text is sent — never phone numbers, Aadhaar, addresses or full names.
 
 | Variable | Where | Meaning |
 | --- | --- | --- |
-| `TTS_PROVIDER=google` | server | turns on `app/api/tts` |
-| `GOOGLE_TTS_API_KEY` | server | Google Cloud API key with Text-to-Speech enabled (never sent to the browser) |
-| `GOOGLE_TTS_VOICE` | server, optional | a specific mr-IN voice name; otherwise Google's default mr-IN voice |
-| `NEXT_PUBLIC_TTS_CLOUD=1` | build time | lets the app use `/api/tts` when no device voice exists |
+| `TTS_PROVIDER` | server | `sarvam` (default), `gemini`, `google` or `off` |
+| `SARVAM_API_KEY` | server | Sarvam AI key (never sent to the browser) |
+| `TTS_MODEL` | server | `bulbul:v4-flash` (default) or `bulbul:v3` |
+| `TTS_SPEAKER_MR` | server | must match the model: v4-flash personas like `ishita_mr_conversational`, v3 names like `rupali`; a mismatch is logged at startup |
+| `TTS_SPEAKER_HI` | server, optional | Hindi speaker for Crop Check |
+| `SARVAM_DICT_ID` | server, optional | Sarvam pronunciation dictionary for crop/variety names |
+| `GEMINI_API_KEY` | server | used when `TTS_PROVIDER=gemini` (the same key as the Krishi Mitra chat) |
+| `TTS_MODEL_GEMINI` | server, optional | `gemini-3.8-flash-lite-tts` (default, fastest), `gemini-3.8-flash-tts`, or `gemini-2.5-flash-preview-tts` |
+| `TTS_VOICE_GEMINI` | server, optional | a Gemini prebuilt voice; default `Kore` |
+| `GOOGLE_TTS_API_KEY`, `GOOGLE_TTS_VOICE` | server | Google Cloud Text-to-Speech, when `TTS_PROVIDER=google` |
+| `NEXT_PUBLIC_TTS_CLOUD=1` | build time | lets the app use `/api/tts` |
+| `NEXT_PUBLIC_TTS_STATIC_BASE` | build time, optional | base URL of pre-generated clips (S3/CloudFront) instead of `/tts` |
+
+With Gemini, the text (already turned into Marathi words) is sent with a short "read this aloud in
+natural, warm Marathi" instruction; the reply is 24 kHz 16-bit mono audio, which the server returns
+as WAV (raw PCM from older models gets a WAV header added). Requests are up to 800 characters, the
+first one short so playback starts sooner; if the first clip takes longer than 6 s, or Gemini
+answers 400/403, the phone's voice is used; on 429 the app says "Online voice is busy" once.
+
+See `.env.example`. Test page (dev only): `/dev/voice` shows time to first audio and where the audio
+came from. `npm run tts:pregen` (needs `SARVAM_API_KEY`) pre-generates Crop Library sections into
+`public/tts/`; add `--dry-run` to count characters, `--price=<₹ per 10,000 characters>` for a cost
+estimate. **My Farm → "Listen to today's work"** reads a template-built briefing
+(`lib/farm-briefing.ts`, checked by `npm run check:briefing`); its Marathi sentences are in `REVIEW`
+for a native speaker to check.
 
 ## Not in this prototype
 

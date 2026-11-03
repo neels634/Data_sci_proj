@@ -129,4 +129,8 @@ assert.equal(readFieldHistory(season([0.2, 0.4, 0.6, 0.55]), null).kind, "steady
   assert.match(lines, /17\.99/);
 }
 
+// an orchard counts from its planting date, however old it is
+assert.equal(fieldReadiness({ status: "growing", sowingDate: null, transplantDate: null, plantedOn: "2018-07-01" }, TODAY).kind, "ready");
+assert.equal(fieldReadiness({ status: "growing", sowingDate: null, transplantDate: null, plantedOn: "2026-10-25" }, TODAY).kind, "young");
+
 console.log("fieldHealth checks passed");

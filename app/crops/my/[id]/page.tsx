@@ -23,10 +23,14 @@ import {
   Wheat,
   X,
 } from "lucide-react";
-import { getCrop, seasonName } from "@/lib/crops";
+import { monthRuns, seasonName } from "@/lib/crops";
+import { useCrop } from "@/lib/crops/load";
 import {
   currentStage,
+  cycleOf,
   dayNumber,
+  isYoungOrchard,
+  orchardAgeYears,
   daysBetween,
   expectedHarvestWindow,
   lastActivity,
@@ -38,7 +42,7 @@ import {
   addDays,
   type TaskOccurrence,
 } from "@/lib/lifecycle";
-import type { ActivityType, CropInfo, FarmCrop, StressObservation } from "@/lib/types";
+import type { ActivityType, CropInfo, FarmCrop, PerennialCrop, StressObservation } from "@/lib/types";
 import { ACTIVITY, LogActivitySheet, NotVerified, SprayBanner, StageTimeline, TaskRow, useFarm } from "@/components/myfarm/ui";
 import { FieldCard } from "@/components/myfarm/FieldCard";
 import { lastStageStart, readFieldHistory, recordLines } from "@/lib/fieldHistory";
@@ -84,7 +88,8 @@ export default function FarmCropPage() {
   const { state, l } = useFarm();
   // only the signed-in farmer's crops are visible here
   const fc = state.myFarmCrops.find((c) => c.id === id);
-  const crop = fc ? getCrop(fc.cropId) : undefined;
+  const crop = useCrop(fc?.cropId ?? null);
+  if (fc && crop === undefined) return <div className="h-60 animate-pulse rounded-3xl bg-sand" aria-busy="true" />;
   if (!fc || !crop)
     return (
       <div>
@@ -129,11 +134,15 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
   const acts = state.myFarmActivities.filter((a) => a.farmCropId === fc.id);
   const plotStressObservations = (state.myStressObservations || []).filter((o) => o.farmCropId === fc.id);
 
-  const day = dayNumber(fc, today);
+  const day = dayNumber(fc, today, crop);
   const now = currentStage(fc, crop, today);
-  const hw = expectedHarvestWindow(fc);
+  const hw = expectedHarvestWindow(fc, crop);
+  const perennial = crop.lifecycle === "perennial";
+  const cycle = crop.lifecycle === "perennial" ? cycleOf(fc, crop) : null;
+  // e.g. "Mrig bahar" for a running cycle, else the season of a seasonal crop
+  const seasonLabel = cycle && fc.cycleStart ? cycle.name : seasonName(crop, fc.seasonIndex);
   const spray = fc.status === "growing" ? sprayStatus(acts, fc.id, today, hw) : null;
-  const due = todayTasks([fc], getCrop, state.myTaskStates, today);
+  const due = todayTasks([fc], (id) => (id === crop.id ? crop : undefined), state.myTaskStates, today);
   const soon = upcomingTasks(fc, crop, state.myTaskStates, addDays(today, 1), 6);
   const growing = fc.status === "growing";
   const planned = fc.status === "planned";
@@ -151,8 +160,8 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
 
   const lastSprayText = spray ? `${spray.last.productName ?? tx(ACTIVITY[spray.last.type].label)}, ${spray.daysSince} days ago` : "none recorded";
   const askQ = l(
-    `My crop: ${crop.name.en}${tx(fc.variety) ? `, variety ${tx(fc.variety)}` : ""}, ${seasonName(crop, fc.seasonIndex).en} season${day != null ? `, day ${day} after sowing` : ", not sown yet"}${now ? `, stage: ${now.stage.name.en}` : ""}. Last spray: ${lastSprayText}. My question: `,
-    `माझे पीक: ${crop.name.mr}${tx(fc.variety) ? `, वाण ${tx(fc.variety)}` : ""}, ${seasonName(crop, fc.seasonIndex).mr} हंगाम${day != null ? `, पेरणीनंतर ${day} वा दिवस` : ", अजून पेरणी नाही"}${now ? `, अवस्था: ${now.stage.name.mr}` : ""}. शेवटची फवारणी: ${spray ? `${spray.last.productName ?? ACTIVITY[spray.last.type].label.mr}, ${spray.daysSince} दिवसांपूर्वी` : "नोंद नाही"}. माझा प्रश्न: `,
+    `My crop: ${crop.name.en}${tx(fc.variety) ? `, variety ${tx(fc.variety)}` : ""}, ${seasonLabel.en} season${day != null ? (perennial ? `, day ${day} of the cycle` : `, day ${day} after sowing`) : perennial ? "" : ", not sown yet"}${now ? `, stage: ${now.stage.name.en}` : ""}. Last spray: ${lastSprayText}. My question: `,
+    `माझे पीक: ${crop.name.mr}${tx(fc.variety) ? `, वाण ${tx(fc.variety)}` : ""}, ${seasonLabel.mr} हंगाम${day != null ? (perennial ? `, बहार सुरू होऊन ${day} वा दिवस` : `, पेरणीनंतर ${day} वा दिवस`) : perennial ? "" : ", अजून पेरणी नाही"}${now ? `, अवस्था: ${now.stage.name.mr}` : ""}. शेवटची फवारणी: ${spray ? `${spray.last.productName ?? ACTIVITY[spray.last.type].label.mr}, ${spray.daysSince} दिवसांपूर्वी` : "नोंद नाही"}. माझा प्रश्न: `,
   );
 
   const mr = state.lang === "mr";
@@ -183,7 +192,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
     if (tx(fc.variety)) lines.push(`- Variety: ${tx(fc.variety)}`);
     lines.push(`- Plot / Field: ${tx(fc.plotName) || "My Field"}`);
     lines.push(`- Area: ${fc.areaAcres} Acres`);
-    lines.push(`- Season: ${seasonName(crop, fc.seasonIndex).en} (${seasonName(crop, fc.seasonIndex).mr})`);
+    lines.push(`- Season: ${seasonLabel.en} (${seasonLabel.mr})`);
     lines.push(`- Sowing Date: ${fc.sowingDate || (fc.plannedSowingDate ? `Planned ${fc.plannedSowingDate}` : "Not recorded")}`);
     if (now && day != null) {
       lines.push(`- Current Stage: Day ${day} (${now.stage.name.en} / ${now.stage.name.mr})`);
@@ -237,7 +246,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
       <PageHeader
         back="/crops"
         title={`${crop.emoji} ${cropTitle(fc)}`}
-        sub={`${tx(fc.plotName) || l("My field", "माझे शेत")} · ${num(fc.areaAcres)} ${l("acre", "एकर")} · ${tx(seasonName(crop, fc.seasonIndex))}`}
+        sub={`${tx(fc.plotName) || l("My field", "माझे शेत")} · ${num(fc.areaAcres)} ${l("acre", "एकर")} · ${tx(seasonLabel)}`}
         action={
           <div className="relative flex gap-1">
             <button onClick={() => setEditing((x) => !x)} className="grid size-12 place-items-center rounded-full border border-line bg-white text-leaf-700" aria-label={l("Edit crop", "पीक बदला")}>
@@ -254,7 +263,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
                     className="flex min-h-12 w-full items-center gap-2 px-4 text-left font-semibold hover:bg-leaf-50"
                     onClick={() => {
                       setMenu(false);
-                      if (window.confirm(l("Mark this crop as harvested today?", "आज काढणी झाली अशी नोंद करायची?"))) markHarvested(fc.id, today);
+                      if (window.confirm(perennial ? l("Mark this cycle's harvest as finished today?", "या बहाराची काढणी आज पूर्ण झाली अशी नोंद करायची?") : l("Mark this crop as harvested today?", "आज काढणी झाली अशी नोंद करायची?"))) markHarvested(fc.id, today);
                     }}
                   >
                     <Wheat size={18} /> {l("Mark harvested", "काढणी झाली")}
@@ -294,9 +303,9 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
             </span>
           </div>
           <div>
-            <span className="text-muted block text-[11px]">{l("Sowing Date", "पेरणी तारीख")}</span>
+            <span className="text-muted block text-[11px]">{perennial ? l("Planted on", "लागवड तारीख") : l("Sowing Date", "पेरणी तारीख")}</span>
             <span className="font-bold text-ink block">
-              {fc.sowingDate ? short(fc.sowingDate) : fc.plannedSowingDate ? `${short(fc.plannedSowingDate)} (${l("Plan", "नियोजन")})` : l("Not set", "नोंद नाही")}
+              {perennial && fc.plantedOn ? short(fc.plantedOn) : fc.sowingDate ? short(fc.sowingDate) : fc.plannedSowingDate ? `${short(fc.plannedSowingDate)} (${l("Plan", "नियोजन")})` : l("Not set", "नोंद नाही")}
             </span>
           </div>
           <div>
@@ -306,7 +315,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
           <div>
             <span className="text-muted block text-[11px]">{l("Village & Season", "गाव व हंगाम")}</span>
             <span className="font-bold text-ink block truncate">
-              {villageName} · {tx(seasonName(crop, fc.seasonIndex))}
+              {villageName} · {tx(seasonLabel)}
             </span>
           </div>
         </div>
@@ -345,11 +354,13 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
         )}
       </div>
 
+      {crop.lifecycle === "perennial" && <OrchardPanel fc={fc} crop={crop} />}
+
       <FieldCard fc={fc} />
 
       {planned && (
         <>
-          <Button full className="mt-3 min-h-14 text-lg" onClick={() => markSown(fc.id, today)}>
+          <Button full className="mt-3 min-h-14 text-lg" onClick={() => markSown(fc.id, today, crop)}>
             <Sprout size={22} /> {l("I sowed today", "आज पेरणी केली")}
           </Button>
           <SectionTitle>{l("Before sowing", "पेरणीपूर्वी")}</SectionTitle>
@@ -994,6 +1005,73 @@ function EditCrop({ fc, onDone }: { fc: FarmCrop; onDone: () => void }) {
         </Button>
         <Button onClick={save}>{l("Save", "जतन करा")}</Button>
       </div>
+    </Card>
+  );
+}
+
+/** Perennial crops: orchard age, young-orchard note, and starting this year's bahar / pruning. */
+function OrchardPanel({ fc, crop }: { fc: FarmCrop; crop: PerennialCrop }) {
+  const { l, tx, ctx, num, today, short, state, startCycle } = useFarm();
+  const lang = state.lang === "mr" ? "mr" : "en";
+  const age = orchardAgeYears(fc, today);
+  const young = isYoungOrchard(fc, crop, today);
+  const running = !!fc.cycleKey && !!fc.cycleStart && fc.status === "growing";
+  const [open, setOpen] = useState(false);
+  const month = Number(today.slice(5, 7));
+  const [key, setKey] = useState(() => (crop.cycles.find((c) => c.startMonths.includes(month)) ?? crop.cycles[0]).key);
+  const [start, setStart] = useState(today);
+  const [err, setErr] = useState("");
+  const save = () => {
+    if (!start || start > today) return setErr(l("Choose today or an earlier date", "आजची किंवा मागची तारीख निवडा"));
+    if (fc.plantedOn && start < fc.plantedOn) return setErr(l("After the planting date", "लागवडीच्या तारखेनंतर"));
+    startCycle(fc.id, key, start);
+    setOpen(false);
+  };
+  return (
+    <Card className="mt-3 space-y-2">
+      <p className="font-bold">
+        🌳 {age != null ? l(`Orchard is ${num(age)} year${age === 1 ? "" : "s"} old`, `बाग ${num(age)} वर्षांची आहे`) : l("Orchard", "बाग")}
+        {fc.plantCount ? ` · ${l(`${num(fc.plantCount)} plants`, `${num(fc.plantCount)} झाडे`)}` : ""}
+      </p>
+      {young && <p className="text-sm text-muted">{l(`Young orchard — usually no crop is taken until year ${crop.yearsToFirstHarvest[0]}. Follow the establishment care below.`, `लहान बाग — साधारण ${num(crop.yearsToFirstHarvest[0])} वर्षांपर्यंत बहार घेत नाहीत. खालील निगा पाळा.`)}</p>}
+      {running ? (
+        <p className="text-sm">
+          {(() => {
+            const c = crop.cycles.find((x) => x.key === fc.cycleKey)!;
+            return l(`${c.name.en} started ${short(fc.cycleStart!)} · harvest ${monthRuns(c.harvestMonths, "en")}`, `${c.name.mr} सुरू ${short(fc.cycleStart!)} · काढणी ${monthRuns(c.harvestMonths, "mr")}`);
+          })()}
+        </p>
+      ) : (
+        !young && <p className="text-sm text-muted">{l("No cycle running now.", "सध्या कोणताही बहार सुरू नाही.")}</p>
+      )}
+      {!running && !open && (
+        <Button full className="min-h-12" onClick={() => setOpen(true)}>
+          <Plus size={18} /> {l("Start next cycle", "पुढचा बहार सुरू करा")}
+        </Button>
+      )}
+      {open && (
+        <div className="space-y-3 pt-1">
+          <div className="grid gap-2" role="radiogroup" aria-label={l("Which cycle?", "कोणता बहार?")}>
+            {crop.cycles.map((c) => (
+              <button key={c.key} type="button" role="radio" aria-checked={key === c.key} onClick={() => setKey(c.key)} className={cx("min-h-12 rounded-2xl border-2 px-3 text-left", key === c.key ? "border-leaf-700 bg-leaf-50" : "border-line bg-white")}>
+                <span className="block font-bold">{tx(c.name)}</span>
+                <span className="block text-sm text-muted">
+                  {l(`Starts ${monthRuns(c.startMonths, lang)} · harvest ${monthRuns(c.harvestMonths, lang)}`, `सुरुवात ${monthRuns(c.startMonths, lang)} · काढणी ${monthRuns(c.harvestMonths, lang)}`)}
+                </span>
+              </button>
+            ))}
+          </div>
+          <Field label={l("Start date", "सुरुवातीची तारीख")} error={err} hint={ctx(crop.cycles.find((c) => c.key === key)!.startEvent)}>
+            <input type="date" className={inputCls} value={start} max={today} onChange={(e) => setStart(e.target.value)} />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+              {l("Cancel", "रद्द")}
+            </Button>
+            <Button onClick={save}>{l("Start", "सुरू करा")}</Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

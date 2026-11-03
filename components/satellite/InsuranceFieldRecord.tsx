@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ChevronRight, Plus, Satellite } from "lucide-react";
 import { useFarm } from "@/components/myfarm/ui";
 import { Card } from "@/components/ui";
-import { getCrop } from "@/lib/crops";
+import { cropEntry } from "@/lib/crops";
 import { fieldStart } from "@/lib/fieldHealth";
 
 /** On an insurance scheme: the way to the farmer's own field records. */
@@ -22,7 +22,7 @@ export default function InsuranceFieldRecord({ schemeId }: { schemeId: string })
         {crops.map((fc) => (
           <Link key={fc.id} href={`/crops/my/${fc.id}/record?scheme=${schemeId}`} className="flex min-h-14 items-center gap-2.5 rounded-xl bg-leaf-50 px-3 py-2">
             <span className="text-xl" aria-hidden="true">
-              {getCrop(fc.cropId)?.emoji}
+              {cropEntry(fc.cropId)?.emoji}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-bold text-ink">{tx(fc.plotName) || cropTitle(fc)}</span>

@@ -7,6 +7,7 @@ import { useFarm } from "@/components/myfarm/ui";
 import { SpeakButton } from "@/components/speech";
 import { Button, Card, Note, PageHeader, cx } from "@/components/ui";
 import { fieldStart } from "@/lib/fieldHealth";
+import { addDays } from "@/lib/lifecycle";
 import { lastStageStart, readFieldHistory, recordLines } from "@/lib/fieldHistory";
 import { satelliteRequest, type HistoryPeriod, type SatelliteProblem } from "@/lib/satellite";
 import type { CropInfo, FarmCrop } from "@/lib/types";
@@ -14,6 +15,9 @@ import type { CropInfo, FarmCrop } from "@/lib/types";
 /** Bars are drawn against this greenness, near the top of what a dense crop reaches. */
 const CHART_TOP = 0.8;
 const MIN_BAR_PERCENT = 4;
+/** An orchard can be many years old; the record covers its last year, which is all the service accepts. */
+const RECORD_MAX_DAYS = 365;
+const latestDate = (a: string, b: string) => (a > b ? a : b);
 
 /** A field's season seen from the satellite, to show a Mitra, an insurer or an agriculture officer. */
 export default function FieldRecord({ fc, crop, back }: { fc: FarmCrop; crop: CropInfo; back: string }) {
@@ -35,7 +39,7 @@ export default function FieldRecord({ fc, crop, back }: { fc: FarmCrop; crop: Cr
     setProblem(null);
     setRunning(true);
     try {
-      const { periods } = await satelliteRequest<{ periods: HistoryPeriod[] }>("field-history", { geometry: boundary, start_date: start, end_date: fc.harvestedOn }, controller.signal);
+      const { periods } = await satelliteRequest<{ periods: HistoryPeriod[] }>("field-history", { geometry: boundary, start_date: latestDate(start, addDays(fc.harvestedOn ?? today, -RECORD_MAX_DAYS)), end_date: fc.harvestedOn }, controller.signal);
       saveFieldHistory(fc.id, { fetchedOn: today, periods });
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
