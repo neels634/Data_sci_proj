@@ -527,6 +527,7 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
       id: onion,
       owner: SEED_FARMER_ACCOUNT,
       cropId: "onion",
+      kind: "seasonal",
       season: "rabi",
       seasonIndex: 2,
       variety: "N-2-4-1",
@@ -546,6 +547,7 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
       id: "fc-chana-demo",
       owner: SEED_FARMER_ACCOUNT,
       cropId: "chana",
+      kind: "seasonal",
       season: "rabi",
       seasonIndex: 0,
       variety: "Vijay",
@@ -561,6 +563,31 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
       notes: "",
       createdAt: d(-2),
     },
+    {
+      // orchard: planted 3 years ago, mrig bahar started 60 days ago (flowering now)
+      id: "fc-pomegranate-demo",
+      owner: SEED_FARMER_ACCOUNT,
+      cropId: "pomegranate",
+      kind: "perennial",
+      season: "perennial",
+      seasonIndex: 0,
+      variety: "Bhagwa",
+      plotName: bi("Orchard on the slope", "उताराची बाग"),
+      areaAcres: 1,
+      method: "transplant",
+      status: "growing",
+      plannedSowingDate: null,
+      sowingDate: null,
+      transplantDate: null,
+      durationDays: [240, 240],
+      harvestedOn: null,
+      notes: "",
+      createdAt: d(-3 * 365),
+      plantedOn: d(-3 * 365),
+      plantCount: 280,
+      cycleKey: "mrig",
+      cycleStart: d(-60),
+    },
   ];
   const act = (id: string, type: FarmActivity["type"], day: number, extra: Partial<FarmActivity> = {}): FarmActivity => ({
     id,
@@ -571,6 +598,7 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
     createdAt: `${d(day)}T10:00:00`,
     ...extra,
   });
+  const pom = "fc-pomegranate-demo";
   const activities: FarmActivity[] = [
     act("fa-tp", "transplanting", -45, { notes: "Seedlings from own nursery" }),
     act("fa-i1", "irrigation", -24, { linkedTaskId: `on-irr2:${d(-24)}` }),
@@ -579,6 +607,9 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
     act("fa-i3", "irrigation", -8, { linkedTaskId: `on-irr2:${d(-8)}` }),
     act("fa-p1", "pesticide", -6, { productName: "Thrips spray advised by KVK", preHarvestIntervalDays: 10, reEntryHours: 24, notes: "Silvery streaks seen on leaves" }),
     act("fa-o1", "observation", -2, { linkedTaskId: `on-obs2:${d(-2)}`, notes: "Leaves look healthy after spray" }),
+    { ...act("fa-pm1", "other", -60, { notes: "Mrig bahar: rest period started" }), farmCropId: pom },
+    { ...act("fa-pm2", "fertiliser", -30, { productName: "Farmyard manure", notes: "Bahar start", linkedTaskId: `mr-fym:${d(-30)}` }), farmCropId: pom },
+    { ...act("fa-pm3", "irrigation", -29, { linkedTaskId: `mr-irr1:${d(-29)}` }), farmCropId: pom },
   ];
   const done = (key: string, day: number): TaskState => ({ farmCropId: onion, taskKey: key, status: "done", at: d(day) });
   const taskStates: TaskState[] = [
@@ -588,6 +619,9 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
     done(`on-irr2:${d(-8)}`, -8),
     done(`on-weed:${d(-20)}`, -20),
     done(`on-obs2:${d(-2)}`, -2),
+    // demo orchard: day 60 of mrig bahar — recent irrigation and flower check done
+    { farmCropId: "fc-pomegranate-demo", taskKey: `mr-irr2:${d(-3)}`, status: "done", at: d(-3) },
+    { farmCropId: "fc-pomegranate-demo", taskKey: `mr-obs1:${d(-6)}`, status: "done", at: d(-6) },
   ];
   return { crops, activities, taskStates };
 }

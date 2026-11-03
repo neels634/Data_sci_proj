@@ -223,6 +223,9 @@ export function toSpokenMarathi(text: string, now: Date = new Date()): string {
   // "1 जानेवारी 2027 ते 21 जानेवारी 2027" → say the shared year once, at the end
   s = s.replace(new RegExp(`(\\d{1,2} (?:${MONTHS_MR.join("|")})) (\\d{4}) ते (\\d{1,2} (?:${MONTHS_MR.join("|")})) \\2\\b`, "g"), "$1 ते $3 $2");
 
+  // "12 मार्च ते 25 मार्च" → "12 ते 25 मार्च"
+  s = s.replace(new RegExp(`(\\d{1,2}) (${MONTHS_MR.join("|")}) ते (\\d{1,2}) \\2(?![\\u0900-\\u097F])`, "g"), "$1 ते $3 $2");
+
   // Marathi unit abbreviations used in the content
   s = s.replace(/सेंमी/g, "सेंटिमीटर").replace(/(?<![ऀ-ॿ])मिमी/g, "मिलिमीटर").replace(/क्विं\./g, "क्विंटल");
   // currency, optionally per unit: "₹30/qtl" → "30 रुपये प्रति क्विंटल"

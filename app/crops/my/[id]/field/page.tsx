@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { Sprout } from "lucide-react";
 import { Empty, PageHeader } from "@/components/ui";
 import { useFarm } from "@/components/myfarm/ui";
-import { getCrop } from "@/lib/crops";
+import { useCrop } from "@/lib/crops/load";
 
 // Leaflet needs the browser, so the map can't be rendered on the server.
 const FieldCheck = dynamic(() => import("@/components/satellite/FieldCheck"), {
@@ -26,10 +26,10 @@ function FieldCheckInner() {
   const fromCropCheck = useSearchParams().get("from") === "crop-check";
   const { id } = useParams<{ id: string }>();
   const { state, hydrated, l } = useFarm();
-  if (!hydrated) return <div className="fixed inset-0 z-40 bg-slate-900" aria-busy="true" />;
   // only the signed-in farmer's crops are visible here
   const fc = state.myFarmCrops.find((c) => c.id === id);
-  const crop = fc ? getCrop(fc.cropId) : undefined;
+  const crop = useCrop(fc?.cropId ?? null);
+  if (!hydrated || (fc && crop === undefined)) return <div className="fixed inset-0 z-40 bg-slate-900" aria-busy="true" />;
   if (!fc || !crop)
     return (
       <div>

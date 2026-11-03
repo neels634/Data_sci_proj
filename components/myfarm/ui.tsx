@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bug, Check, ChevronDown, CircleDot, Droplets, Eye, FlaskConical, Scissors, ShieldCheck, Shovel, SkipForward, Sprout, TriangleAlert, Wheat, X } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { getCrop } from "@/lib/crops";
+import { cropEntry } from "@/lib/crops";
 import { todayISO, type DueTask, type SprayStatus, type TaskOccurrence } from "@/lib/lifecycle";
 import type { ActivityType, CropStage, FarmCrop } from "@/lib/types";
 import { Badge, Button, Field, cx, inputCls } from "../ui";
@@ -32,7 +32,8 @@ export const LOG_ON_DONE: ActivityType[] = ["irrigation", "fertiliser", "pestici
 export function useFarm() {
   const store = useStore();
   const today = todayISO();
-  const cropOf = (fc: Pick<FarmCrop, "cropId">) => getCrop(fc.cropId);
+  /** light index entry (name, emoji, category…) — no full crop load needed */
+  const cropOf = (fc: Pick<FarmCrop, "cropId">) => cropEntry(fc.cropId);
   /** "Onion · N-2-4-1" */
   const cropTitle = (fc: FarmCrop) => {
     const c = cropOf(fc);

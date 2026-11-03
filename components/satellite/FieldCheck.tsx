@@ -8,7 +8,7 @@ import { useFarm } from "@/components/myfarm/ui";
 import { SpeakButton } from "@/components/speech";
 import { cx } from "@/components/ui";
 import { assessField, fieldReadiness, zoneColor, type FieldAssessment, type Side } from "@/lib/fieldHealth";
-import { currentStage, scaledStages } from "@/lib/lifecycle";
+import { currentStage, planOf } from "@/lib/lifecycle";
 import { satelliteRequest, type AnalysisResult, type PolygonGeometry, type SatelliteProblem } from "@/lib/satellite";
 import type { CropInfo, FarmCrop } from "@/lib/types";
 import DrawBar from "./DrawBar";
@@ -269,7 +269,7 @@ function Result({ fc, crop, checked }: { fc: FarmCrop; crop: CropInfo; checked: 
   if (assessment.kind === "too_small") return <Answer tone="neutral" icon={<TriangleAlert size={28} />} speechId={`field-small:${fc.id}`} title={l("This field is too small to compare", "तुलना करण्यासाठी हे शेत खूप लहान आहे")} body={l("The satellite sees squares of 10 metres, which is too coarse for a field this size.", "उपग्रहाला 10 मीटरचे चौरस दिसतात. एवढ्या लहान शेतासाठी ते पुरेसे बारीक नाहीत.")} />;
 
   const stage = currentStage(fc, crop, today);
-  const nearHarvest = !!stage && stage.index === scaledStages(fc, crop).length - 1;
+  const nearHarvest = !!stage && stage.index === planOf(fc, crop, today).stages.length - 1;
   const markedAcres = summary.area_hectares * ACRES_PER_HECTARE;
   const wrongSize = fc.areaAcres > 0 && (markedAcres > fc.areaAcres * AREA_MISMATCH || markedAcres < fc.areaAcres / AREA_MISMATCH);
 

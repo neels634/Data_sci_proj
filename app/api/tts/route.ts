@@ -1,18 +1,16 @@
 /**
- * Optional cloud voice for Marathi, used only when the phone has no Marathi or Hindi voice.
+ * Text-to-speech for read-aloud (Marathi first). The provider and its key live on the server
+ * (lib/tts/providers.ts); the browser only sends crop/task text that is already verbalized by
+ * toSpokenMarathi (numbers as words). Never send phone numbers, addresses or full names here.
  *
- * Off unless the server has TTS_PROVIDER=google and GOOGLE_TTS_API_KEY (the key stays here), and
- * the client is built with NEXT_PUBLIC_TTS_CLOUD=1. Uses Google Cloud Text-to-Speech with
- * languageCode "mr-IN"; set GOOGLE_TTS_VOICE (e.g. an mr-IN voice name from Google's voice list)
- * to pick a specific voice, otherwise Google chooses its default mr-IN voice.
- * The text arrives already verbalized by toSpokenMarathi (numbers as words).
+ * GET  /api/tts?lang=mr → { provider, voice, chunkChars, firstChunkMs } for the client's cache key and chunking
+ * POST /api/tts { text, lang } → audio/mpeg
  */
 import { createHash } from "node:crypto";
+import { getProvider, TtsError, type TtsLang } from "@/lib/tts/providers";
 
 export const dynamic = "force-dynamic";
 
-const ENDPOINT = "https://texttospeech.googleapis.com/v1/text:synthesize";
-const MAX_TEXT = 1000; // characters per request
 const PER_MINUTE = 30; // requests per visitor per minute
 const CACHE_MAX = 200; // synthesized clips kept in memory
 
@@ -27,53 +25,57 @@ function limited(ip: string) {
   return recent.length > PER_MINUTE;
 }
 
-/** the same crop section isn't synthesized twice; oldest entries leave first */
-const cache = new Map<string, Buffer>();
-const remember = (key: string, audio: Buffer) => {
-  cache.set(key, audio);
+/** LRU: a hit moves the clip to the end; the oldest leaves first */
+const cache = new Map<string, { audio: Uint8Array; mime: string }>();
+const remember = (key: string, v: { audio: Uint8Array; mime: string }) => {
+  cache.delete(key);
+  cache.set(key, v);
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
 };
 
 const fail = (error: string, status: number) => Response.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
-const mp3 = (audio: Buffer) => new Response(new Uint8Array(audio), { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" } });
+const audioResponse = (v: { audio: Uint8Array; mime: string }, source: string) =>
+  new Response(new Uint8Array(v.audio), { headers: { "Content-Type": v.mime, "Cache-Control": "private, max-age=604800", "X-TTS-Source": source } });
+const LANGS = new Set<TtsLang>(["mr", "hi", "en"]);
+
+export function GET(req: Request) {
+  const p = getProvider();
+  if (!p) return fail("Cloud voice is not configured", 503);
+  const lang = (new URL(req.url).searchParams.get("lang") ?? "mr") as TtsLang;
+  return Response.json({ provider: p.name, voice: p.voiceId(LANGS.has(lang) ? lang : "mr"), maxChars: p.maxChars, chunkChars: p.chunkChars, firstChunkMs: p.firstChunkMs }, { headers: { "Cache-Control": "no-store" } });
+}
+
+const DEV = process.env.NODE_ENV !== "production";
+const str = (v: unknown) => (typeof v === "string" && v.length < 80 ? v : undefined);
 
 export async function POST(req: Request) {
-  const key = process.env.GOOGLE_TTS_API_KEY;
-  if (process.env.TTS_PROVIDER !== "google" || !key) return fail("Cloud voice is not configured", 503);
+  const body = (await req.json().catch(() => ({}))) as { text?: unknown; lang?: unknown; provider?: unknown; model?: unknown; speaker?: unknown };
+  // provider / model / speaker overrides exist only for the /dev/voice test page
+  const speaker = DEV ? str(body.speaker) : undefined;
+  const provider = DEV && (body.provider || body.model) ? getProvider(str(body.provider), str(body.model)) : getProvider();
+  if (!provider) return fail("Cloud voice is not configured", 503);
 
-  const body = (await req.json().catch(() => ({}))) as { text?: unknown; lang?: unknown };
-  if (body.lang !== "mr") return fail("Only Marathi is supported", 400);
+  const lang = body.lang as TtsLang;
+  if (!LANGS.has(lang)) return fail("Unsupported language", 400);
   const text = typeof body.text === "string" ? body.text.trim() : "";
   if (!text) return fail("No text", 400);
-  if (text.length > MAX_TEXT) return fail(`Text longer than ${MAX_TEXT} characters`, 413);
+  if (text.length > provider.maxChars) return fail(`Text longer than ${provider.maxChars} characters`, 413);
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (limited(ip)) return fail("Too many requests — please wait a minute", 429);
 
-  const hash = createHash("sha256").update(`mr\n${text}`).digest("hex");
-  const cached = cache.get(hash);
-  if (cached) return mp3(cached);
-
+  const hash = createHash("sha256").update(`${provider.voiceId(lang)}|${speaker ?? ""}\n${lang}\n${text}`).digest("hex");
+  const hit = cache.get(hash);
+  if (hit) {
+    remember(hash, hit);
+    return audioResponse(hit, "server-cache");
+  }
   try {
-    const res = await fetch(`${ENDPOINT}?key=${encodeURIComponent(key)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        input: { text },
-        voice: { languageCode: "mr-IN", ...(process.env.GOOGLE_TTS_VOICE ? { name: process.env.GOOGLE_TTS_VOICE } : {}) },
-        audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 },
-      }),
-    });
-    if (!res.ok) {
-      console.error("tts: Google returned", res.status, await res.text().catch(() => ""));
-      return fail("Voice service error", 502);
-    }
-    const data = (await res.json()) as { audioContent?: string };
-    if (!data.audioContent) return fail("Voice service returned no audio", 502);
-    const audio = Buffer.from(data.audioContent, "base64");
-    remember(hash, audio);
-    return mp3(audio);
+    const v = await provider.synthesize(text, lang, speaker);
+    remember(hash, v);
+    return audioResponse(v, provider.name);
   } catch (e) {
+    if (e instanceof TtsError) return fail(e.publicMessage, e.status);
     console.error("tts: request failed", e);
     return fail("Voice service unreachable", 502);
   }

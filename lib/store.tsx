@@ -25,7 +25,6 @@ import { bi, fmtDate, label, tx, type Bi, type Text } from "./i18n";
 import { fmtNum } from "./marathi-numbers";
 import { profileFromAccount, type Account } from "./account";
 import { occurrences, todayISO } from "./lifecycle";
-import { getCrop } from "./crops";
 import type {
   ActivityItem,
   BusinessPlan,
@@ -40,6 +39,7 @@ import type {
   Role,
   Scheme,
   StressObservation,
+  CropInfo,
   TaskState,
   TrackerStatus,
 } from "./types";
@@ -66,6 +66,8 @@ interface AppState {
   /** read-aloud: "don't show again" on the no-Marathi-voice help, and the one-time Hindi-voice tip */
   voiceHelpDismissed: boolean;
   voiceTipSeen: boolean;
+  /** read-aloud: use the online neural voice when available (else the phone's voice) */
+  naturalVoice: boolean;
   farmCrops: FarmCrop[];
   farmActivities: FarmActivity[];
   taskStates: TaskState[];
@@ -96,6 +98,7 @@ const initialState = (): AppState => {
   },
   voiceHelpDismissed: false,
   voiceTipSeen: false,
+  naturalVoice: true,
   farmCrops: farm.crops,
   farmActivities: farm.activities,
   taskStates: farm.taskStates,
@@ -103,21 +106,33 @@ const initialState = (): AppState => {
   };
 };
 
-const STORAGE_KEY = "udyamsetu-state-v5";
-const OLD_STORAGE_KEY = "udyamsetu-state-v4";
+const STORAGE_KEY = "udyamsetu-state-v6";
+const V5_STORAGE_KEY = "udyamsetu-state-v5";
+const V4_STORAGE_KEY = "udyamsetu-state-v4";
 /** What survives the v4 → v5 upgrade. Women & SHG data (enterprises, enquiries) is dropped. */
 const V4_KEEP = ["lang", "role", "profile", "accounts", "sessionId", "schemes", "listings", "lots", "offers", "plans", "bookmarksBy", "trackerBy", "reports", "activityBy"] as const;
 
-/** Read saved state; upgrades v4 data once without losing accounts. */
+/** v5 → v6: My Farm crops gain `kind`; every existing crop is seasonal. */
+const toV6 = (saved: Partial<AppState>): Partial<AppState> => ({
+  ...saved,
+  farmCrops: (saved.farmCrops ?? []).map((c) => ({ ...c, kind: c.kind ?? "seasonal" })),
+});
+
+/** Read saved state; upgrades older versions once without losing accounts or crops. */
 function loadSaved(): Partial<AppState> | null {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) return JSON.parse(raw);
-  const old = localStorage.getItem(OLD_STORAGE_KEY);
+  if (raw) return toV6(JSON.parse(raw));
+  const v5 = localStorage.getItem(V5_STORAGE_KEY);
+  if (v5) {
+    localStorage.removeItem(V5_STORAGE_KEY);
+    return toV6(JSON.parse(v5));
+  }
+  const old = localStorage.getItem(V4_STORAGE_KEY);
   if (!old) return null;
   const v4 = JSON.parse(old) as Record<string, unknown>;
   const kept: Record<string, unknown> = { farmCrops: [], farmActivities: [], taskStates: [] };
   for (const k of V4_KEEP) if (k in v4) kept[k] = v4[k];
-  localStorage.removeItem(OLD_STORAGE_KEY);
+  localStorage.removeItem(V4_STORAGE_KEY);
   return kept as Partial<AppState>;
 }
 const today = () => new Date().toISOString().slice(0, 10);
@@ -125,9 +140,8 @@ const uid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toStri
 /** key for per-account data */
 const who = (s: AppState) => s.sessionId ?? "guest";
 /** Sowing/transplanting tasks are already done when the farmer records those dates. */
-function closedByDates(c: FarmCrop): TaskState[] {
-  const info = getCrop(c.cropId);
-  if (!info || !c.sowingDate) return [];
+function closedByDates(c: FarmCrop, info: CropInfo | null | undefined): TaskState[] {
+  if (!info || info.lifecycle !== "seasonal" || !c.sowingDate) return [];
   return occurrences(c, info)
     .filter((o) => (o.task.type === "sowing" && o.date <= (c.sowingDate as string)) || (o.task.type === "transplanting" && !!c.transplantDate && o.date <= c.transplantDate))
     .map((o) => ({ farmCropId: c.id, taskKey: o.key, status: "done" as const, at: todayISO() }));
@@ -360,25 +374,31 @@ function useAppStore() {
 
 
       dismissVoiceHelp: (dismissed = true) => setState((s) => ({ ...s, voiceHelpDismissed: dismissed })),
+      setNaturalVoice: (on: boolean) => setState((s) => ({ ...s, naturalVoice: on })),
       markVoiceTip: () => setState((s) => (s.voiceTipSeen ? s : { ...s, voiceTipSeen: true })),
 
       // ---- My Farm: every action checks the crop belongs to the signed-in farmer
-      addFarmCrop: (c: Omit<FarmCrop, "owner" | "createdAt">) =>
+      /** `info` is the loaded library crop; it lets tasks already done (sowing, transplanting) be closed */
+      addFarmCrop: (c: Omit<FarmCrop, "owner" | "createdAt">, info?: CropInfo | null) =>
         setState((s) => {
           if (!s.sessionId) return s;
           const crop: FarmCrop = { ...c, owner: s.sessionId, createdAt: todayISO() };
           later(bi("Crop added to My Farm", "पीक माझ्या शेतीत जोडले"));
           const activities: FarmActivity[] =
-            crop.sowingDate && crop.status === "growing"
-              ? [{ id: uid("fa"), farmCropId: crop.id, type: "sowing", date: crop.sowingDate, notes: "", createdAt: new Date().toISOString() }]
-              : [];
+            crop.kind === "perennial"
+              ? crop.plantedOn && crop.status === "growing"
+                ? [{ id: uid("fa"), farmCropId: crop.id, type: "transplanting", date: crop.plantedOn, notes: "Orchard planted", createdAt: new Date().toISOString() }]
+                : []
+              : crop.sowingDate && crop.status === "growing"
+                ? [{ id: uid("fa"), farmCropId: crop.id, type: "sowing", date: crop.sowingDate, notes: "", createdAt: new Date().toISOString() }]
+                : [];
           if (crop.transplantDate && crop.status === "growing")
             activities.push({ id: uid("fa"), farmCropId: crop.id, type: "transplanting", date: crop.transplantDate, notes: "", createdAt: new Date().toISOString() });
           return {
             ...s,
             farmCrops: [crop, ...s.farmCrops],
             farmActivities: [...activities, ...s.farmActivities],
-            taskStates: crop.status === "growing" ? [...s.taskStates, ...closedByDates(crop)] : s.taskStates,
+            taskStates: crop.status === "growing" ? [...s.taskStates, ...closedByDates(crop, info)] : s.taskStates,
             activityBy: log(s, bi("Added a crop to My Farm", "माझ्या शेतीत पीक जोडले")),
           };
         }),
@@ -392,7 +412,7 @@ function useAppStore() {
       saveFieldHistory: (id: string, fieldHistory: FarmCrop["fieldHistory"]) =>
         setState((s) => ({ ...s, farmCrops: s.farmCrops.map((c) => (c.id === id && c.owner === s.sessionId ? { ...c, fieldHistory } : c)) })),
       /** planned → growing, with the sowing recorded in the log */
-      markSown: (id: string, date: string) =>
+      markSown: (id: string, date: string, info?: CropInfo | null) =>
         setState((s) => {
           if (!s.farmCrops.some((c) => c.id === id && c.owner === s.sessionId)) return s;
           later(bi("Sowing recorded. Your crop calendar has started.", "पेरणीची नोंद झाली. पिकाचे वेळापत्रक सुरू झाले."));
@@ -400,8 +420,20 @@ function useAppStore() {
           return {
             ...s,
             farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, status: "growing", sowingDate: date } : c)),
-            taskStates: [...s.taskStates, ...closedByDates({ ...sown, status: "growing", sowingDate: date })],
+            taskStates: [...s.taskStates, ...closedByDates({ ...sown, status: "growing", sowingDate: date }, info)],
             farmActivities: [{ id: uid("fa"), farmCropId: id, type: "sowing", date, notes: "", createdAt: new Date().toISOString() }, ...s.farmActivities],
+          };
+        }),
+      /** perennial: start this year's bahar / pruning cycle (after the previous one is harvested) */
+      startCycle: (id: string, cycleKey: string, start: string) =>
+        setState((s) => {
+          const fc = s.farmCrops.find((c) => c.id === id && c.owner === s.sessionId);
+          if (!fc) return s;
+          later(bi("New cycle started. Its tasks are now in your list.", "नवा बहार/हंगाम सुरू झाला. त्याची कामे यादीत आली."));
+          return {
+            ...s,
+            farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, status: "growing", cycleKey, cycleStart: start, harvestedOn: null } : c)),
+            farmActivities: [{ id: uid("fa"), farmCropId: id, type: "other", date: start, notes: `Cycle started: ${cycleKey}`, createdAt: new Date().toISOString() }, ...s.farmActivities],
           };
         }),
       markHarvested: (id: string, date: string) =>
@@ -410,7 +442,8 @@ function useAppStore() {
           later(bi("Marked as harvested", "काढणी झाल्याची नोंद केली"));
           return {
             ...s,
-            farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, status: "harvested", harvestedOn: date } : c)),
+            // an orchard keeps growing: harvest ends this year's cycle and waits for the next one
+            farmCrops: s.farmCrops.map((c) => (c.id === id ? (c.kind === "perennial" ? { ...c, cycleStart: null, harvestedOn: date } : { ...c, status: "harvested", harvestedOn: date }) : c)),
             farmActivities: [{ id: uid("fa"), farmCropId: id, type: "harvest", date, notes: "", createdAt: new Date().toISOString() }, ...s.farmActivities],
           };
         }),
