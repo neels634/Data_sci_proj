@@ -1,0 +1,1633 @@
+{
+ "note": "SAMPLE figures for the prototype, not real market data. Dated today when served.",
+ "rows": [
+  {
+   "marketId": "lasalgaon",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1200,
+   "maxPerQtl": 3000,
+   "modalPerQtl": 2300
+  },
+  {
+   "marketId": "lasalgaon",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4420,
+   "maxPerQtl": 5010,
+   "modalPerQtl": 4740
+  },
+  {
+   "marketId": "pimpalgaon",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1150,
+   "maxPerQtl": 2950,
+   "modalPerQtl": 2250
+  },
+  {
+   "marketId": "pimpalgaon",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 810,
+   "maxPerQtl": 2020,
+   "modalPerQtl": 1420,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "pimpalgaon",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 720,
+   "maxPerQtl": 1750,
+   "modalPerQtl": 1230,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "pimpalgaon",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3090,
+   "maxPerQtl": 15430,
+   "modalPerQtl": 9260
+  },
+  {
+   "marketId": "nashik",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1080,
+   "maxPerQtl": 2550,
+   "modalPerQtl": 1870
+  },
+  {
+   "marketId": "nashik",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 770,
+   "maxPerQtl": 1920,
+   "modalPerQtl": 1340,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "nashik",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 750,
+   "maxPerQtl": 1820,
+   "modalPerQtl": 1280,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "nashik",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3010,
+   "maxPerQtl": 15050,
+   "modalPerQtl": 9030
+  },
+  {
+   "marketId": "nashik",
+   "cropId": "marigold",
+   "varietyRaw": "Orange",
+   "minPerQtl": 2000,
+   "maxPerQtl": 5990,
+   "modalPerQtl": 3990,
+   "typeCode": "marigold.keshri"
+  },
+  {
+   "marketId": "nashik",
+   "cropId": "marigold",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 1710,
+   "maxPerQtl": 4940,
+   "modalPerQtl": 3320,
+   "typeCode": "marigold.pivla"
+  },
+  {
+   "marketId": "manchar",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1150,
+   "maxPerQtl": 2710,
+   "modalPerQtl": 1980
+  },
+  {
+   "marketId": "manchar",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 780,
+   "maxPerQtl": 1940,
+   "modalPerQtl": 1360,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "manchar",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 650,
+   "maxPerQtl": 1590,
+   "modalPerQtl": 1120,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1070,
+   "maxPerQtl": 2540,
+   "modalPerQtl": 1850
+  },
+  {
+   "marketId": "pune",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 840,
+   "maxPerQtl": 2110,
+   "modalPerQtl": 1470,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 690,
+   "maxPerQtl": 1670,
+   "modalPerQtl": 1180,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3070,
+   "maxPerQtl": 15350,
+   "modalPerQtl": 9210
+  },
+  {
+   "marketId": "pune",
+   "cropId": "marigold",
+   "varietyRaw": "Orange",
+   "minPerQtl": 1860,
+   "maxPerQtl": 5570,
+   "modalPerQtl": 3710,
+   "typeCode": "marigold.keshri"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "marigold",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 1660,
+   "maxPerQtl": 4810,
+   "modalPerQtl": 3240,
+   "typeCode": "marigold.pivla"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5580,
+   "maxPerQtl": 6240,
+   "modalPerQtl": 5940,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 6340,
+   "maxPerQtl": 7200,
+   "modalPerQtl": 6770,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6690,
+   "maxPerQtl": 7560,
+   "modalPerQtl": 7170,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "pune",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7690,
+   "maxPerQtl": 8650,
+   "modalPerQtl": 8220,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "narayangaon",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 810,
+   "maxPerQtl": 2010,
+   "modalPerQtl": 1410,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "narayangaon",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 680,
+   "maxPerQtl": 1650,
+   "modalPerQtl": 1170,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "narayangaon",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1080,
+   "maxPerQtl": 2560,
+   "modalPerQtl": 1870
+  },
+  {
+   "marketId": "rahata",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1100,
+   "maxPerQtl": 2600,
+   "modalPerQtl": 1900
+  },
+  {
+   "marketId": "rahata",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3030,
+   "maxPerQtl": 15160,
+   "modalPerQtl": 9100
+  },
+  {
+   "marketId": "rahata",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 3850,
+   "maxPerQtl": 4360,
+   "modalPerQtl": 4130
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1110,
+   "maxPerQtl": 2630,
+   "modalPerQtl": 1920
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 830,
+   "maxPerQtl": 2060,
+   "modalPerQtl": 1440,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 700,
+   "maxPerQtl": 1690,
+   "modalPerQtl": 1190,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 3930,
+   "maxPerQtl": 4460,
+   "modalPerQtl": 4220
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6680,
+   "maxPerQtl": 7530,
+   "modalPerQtl": 7150,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7320,
+   "maxPerQtl": 8230,
+   "modalPerQtl": 7830,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5430,
+   "maxPerQtl": 6070,
+   "modalPerQtl": 5770,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 6120,
+   "maxPerQtl": 6950,
+   "modalPerQtl": 6540,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3120,
+   "maxPerQtl": 4290,
+   "modalPerQtl": 3710,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2250,
+   "maxPerQtl": 2840,
+   "modalPerQtl": 2540,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "ahilyanagar",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3180,
+   "maxPerQtl": 15890,
+   "modalPerQtl": 9530
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1020,
+   "maxPerQtl": 2420,
+   "modalPerQtl": 1770
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 760,
+   "maxPerQtl": 1910,
+   "modalPerQtl": 1340,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 660,
+   "maxPerQtl": 1610,
+   "modalPerQtl": 1140,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4130,
+   "maxPerQtl": 4680,
+   "modalPerQtl": 4430
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6680,
+   "maxPerQtl": 7540,
+   "modalPerQtl": 7160,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 6940,
+   "maxPerQtl": 7810,
+   "modalPerQtl": 7420,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5780,
+   "maxPerQtl": 6460,
+   "modalPerQtl": 6140,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 6010,
+   "maxPerQtl": 6820,
+   "modalPerQtl": 6410,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3430,
+   "maxPerQtl": 4720,
+   "modalPerQtl": 4070,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2470,
+   "maxPerQtl": 3110,
+   "modalPerQtl": 2790,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "solapur",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3160,
+   "maxPerQtl": 15790,
+   "modalPerQtl": 9470
+  },
+  {
+   "marketId": "sangola",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 2950,
+   "maxPerQtl": 14750,
+   "modalPerQtl": 8850
+  },
+  {
+   "marketId": "pandharpur",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3110,
+   "maxPerQtl": 15550,
+   "modalPerQtl": 9330
+  },
+  {
+   "marketId": "pandharpur",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1140,
+   "maxPerQtl": 2710,
+   "modalPerQtl": 1980
+  },
+  {
+   "marketId": "pandharpur",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3160,
+   "maxPerQtl": 4340,
+   "modalPerQtl": 3750,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "pandharpur",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2300,
+   "maxPerQtl": 2900,
+   "modalPerQtl": 2600,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1600,
+   "maxPerQtl": 2000,
+   "modalPerQtl": 1850
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 770,
+   "maxPerQtl": 1910,
+   "modalPerQtl": 1340,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 670,
+   "maxPerQtl": 1630,
+   "modalPerQtl": 1150,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4330,
+   "maxPerQtl": 4910,
+   "modalPerQtl": 4650
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7480,
+   "maxPerQtl": 8440,
+   "modalPerQtl": 8010,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 6800,
+   "maxPerQtl": 7650,
+   "modalPerQtl": 7280,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5640,
+   "maxPerQtl": 6300,
+   "modalPerQtl": 6000,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5770,
+   "maxPerQtl": 6550,
+   "modalPerQtl": 6160,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3110,
+   "maxPerQtl": 4270,
+   "modalPerQtl": 3690,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2430,
+   "maxPerQtl": 3060,
+   "modalPerQtl": 2740,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "phaltan",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 2780,
+   "maxPerQtl": 13890,
+   "modalPerQtl": 8340
+  },
+  {
+   "marketId": "lonand",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 800,
+   "maxPerQtl": 4200,
+   "modalPerQtl": 2100
+  },
+  {
+   "marketId": "lonand",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4390,
+   "maxPerQtl": 4980,
+   "modalPerQtl": 4710
+  },
+  {
+   "marketId": "lonand",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3130,
+   "maxPerQtl": 4300,
+   "modalPerQtl": 3720,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "lonand",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2160,
+   "maxPerQtl": 2720,
+   "modalPerQtl": 2440,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1180,
+   "maxPerQtl": 2780,
+   "modalPerQtl": 2030
+  },
+  {
+   "marketId": "satara",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 740,
+   "maxPerQtl": 1850,
+   "modalPerQtl": 1290,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 690,
+   "maxPerQtl": 1690,
+   "modalPerQtl": 1190,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4080,
+   "maxPerQtl": 4630,
+   "modalPerQtl": 4380
+  },
+  {
+   "marketId": "satara",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7250,
+   "maxPerQtl": 8180,
+   "modalPerQtl": 7770,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7290,
+   "maxPerQtl": 8200,
+   "modalPerQtl": 7790,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5600,
+   "maxPerQtl": 6260,
+   "modalPerQtl": 5960,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5600,
+   "maxPerQtl": 6360,
+   "modalPerQtl": 5980,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3040,
+   "maxPerQtl": 4180,
+   "modalPerQtl": 3610,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2320,
+   "maxPerQtl": 2930,
+   "modalPerQtl": 2630,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "turmeric",
+   "varietyRaw": "Rajapuri",
+   "minPerQtl": 12950,
+   "maxPerQtl": 17800,
+   "modalPerQtl": 15110,
+   "typeCode": "turmeric.rajapuri"
+  },
+  {
+   "marketId": "satara",
+   "cropId": "turmeric",
+   "varietyRaw": "Other",
+   "minPerQtl": 11150,
+   "maxPerQtl": 15210,
+   "modalPerQtl": 13180,
+   "typeCode": "turmeric.parpeth"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1160,
+   "maxPerQtl": 2750,
+   "modalPerQtl": 2010
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 750,
+   "maxPerQtl": 1880,
+   "modalPerQtl": 1320,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 660,
+   "maxPerQtl": 1600,
+   "modalPerQtl": 1130,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4390,
+   "maxPerQtl": 4970,
+   "modalPerQtl": 4710
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6610,
+   "maxPerQtl": 7460,
+   "modalPerQtl": 7080,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 6970,
+   "maxPerQtl": 7840,
+   "modalPerQtl": 7460,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5170,
+   "maxPerQtl": 5780,
+   "modalPerQtl": 5500,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5470,
+   "maxPerQtl": 6210,
+   "modalPerQtl": 5840,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3360,
+   "maxPerQtl": 4630,
+   "modalPerQtl": 3990,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2140,
+   "maxPerQtl": 2690,
+   "modalPerQtl": 2420,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "baramati",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 6660,
+   "maxPerQtl": 7350,
+   "modalPerQtl": 7000
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "turmeric",
+   "varietyRaw": "Rajapuri",
+   "minPerQtl": 12930,
+   "maxPerQtl": 17770,
+   "modalPerQtl": 15080,
+   "typeCode": "turmeric.rajapuri"
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "turmeric",
+   "varietyRaw": "Other",
+   "minPerQtl": 11280,
+   "maxPerQtl": 15380,
+   "modalPerQtl": 13330,
+   "typeCode": "turmeric.parpeth"
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 3820,
+   "maxPerQtl": 4330,
+   "modalPerQtl": 4100
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5470,
+   "maxPerQtl": 6110,
+   "modalPerQtl": 5810,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 6130,
+   "maxPerQtl": 6970,
+   "modalPerQtl": 6550,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3400,
+   "maxPerQtl": 4680,
+   "modalPerQtl": 4040,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "sangli",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2470,
+   "maxPerQtl": 3110,
+   "modalPerQtl": 2790,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1130,
+   "maxPerQtl": 2660,
+   "modalPerQtl": 1940
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 810,
+   "maxPerQtl": 2040,
+   "modalPerQtl": 1430,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 750,
+   "maxPerQtl": 1810,
+   "modalPerQtl": 1280,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4180,
+   "maxPerQtl": 4740,
+   "modalPerQtl": 4480
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3220,
+   "maxPerQtl": 4420,
+   "modalPerQtl": 3820,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2190,
+   "maxPerQtl": 2760,
+   "modalPerQtl": 2480,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "turmeric",
+   "varietyRaw": "Rajapuri",
+   "minPerQtl": 12570,
+   "maxPerQtl": 17280,
+   "modalPerQtl": 14670,
+   "typeCode": "turmeric.rajapuri"
+  },
+  {
+   "marketId": "kolhapur",
+   "cropId": "turmeric",
+   "varietyRaw": "Other",
+   "minPerQtl": 10740,
+   "maxPerQtl": 14640,
+   "modalPerQtl": 12690,
+   "typeCode": "turmeric.parpeth"
+  },
+  {
+   "marketId": "latur",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4140,
+   "maxPerQtl": 4700,
+   "modalPerQtl": 4450
+  },
+  {
+   "marketId": "latur",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6720,
+   "maxPerQtl": 7580,
+   "modalPerQtl": 7200,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "latur",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 6970,
+   "maxPerQtl": 7840,
+   "modalPerQtl": 7450,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "latur",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5470,
+   "maxPerQtl": 6120,
+   "modalPerQtl": 5820,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "latur",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5780,
+   "maxPerQtl": 6570,
+   "modalPerQtl": 6170,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "latur",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3000,
+   "maxPerQtl": 4130,
+   "modalPerQtl": 3560,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "latur",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2400,
+   "maxPerQtl": 3030,
+   "modalPerQtl": 2710,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "akola",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 6740,
+   "maxPerQtl": 7440,
+   "modalPerQtl": 7090
+  },
+  {
+   "marketId": "akola",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 3830,
+   "maxPerQtl": 4340,
+   "modalPerQtl": 4110
+  },
+  {
+   "marketId": "akola",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7060,
+   "maxPerQtl": 7960,
+   "modalPerQtl": 7560,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "akola",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7260,
+   "maxPerQtl": 8170,
+   "modalPerQtl": 7760,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "akola",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5750,
+   "maxPerQtl": 6430,
+   "modalPerQtl": 6120,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "akola",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5640,
+   "maxPerQtl": 6410,
+   "modalPerQtl": 6030,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "amravati",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 7340,
+   "maxPerQtl": 8090,
+   "modalPerQtl": 7720
+  },
+  {
+   "marketId": "amravati",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4030,
+   "maxPerQtl": 4570,
+   "modalPerQtl": 4330
+  },
+  {
+   "marketId": "amravati",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6540,
+   "maxPerQtl": 7380,
+   "modalPerQtl": 7010,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "amravati",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 6810,
+   "maxPerQtl": 7670,
+   "modalPerQtl": 7290,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "amravati",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5760,
+   "maxPerQtl": 6440,
+   "modalPerQtl": 6130,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "amravati",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5750,
+   "maxPerQtl": 6530,
+   "modalPerQtl": 6140,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "washim",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4410,
+   "maxPerQtl": 5000,
+   "modalPerQtl": 4730
+  },
+  {
+   "marketId": "washim",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6470,
+   "maxPerQtl": 7300,
+   "modalPerQtl": 6930,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "washim",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7410,
+   "maxPerQtl": 8330,
+   "modalPerQtl": 7920,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "washim",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5870,
+   "maxPerQtl": 6560,
+   "modalPerQtl": 6240,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "washim",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5490,
+   "maxPerQtl": 6240,
+   "modalPerQtl": 5870,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "yavatmal",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 7070,
+   "maxPerQtl": 7790,
+   "modalPerQtl": 7430
+  },
+  {
+   "marketId": "yavatmal",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4190,
+   "maxPerQtl": 4750,
+   "modalPerQtl": 4490
+  },
+  {
+   "marketId": "yavatmal",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7070,
+   "maxPerQtl": 7980,
+   "modalPerQtl": 7570,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "yavatmal",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7320,
+   "maxPerQtl": 8240,
+   "modalPerQtl": 7830,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "hingoli",
+   "cropId": "turmeric",
+   "varietyRaw": "Rajapuri",
+   "minPerQtl": 12670,
+   "maxPerQtl": 17420,
+   "modalPerQtl": 14780,
+   "typeCode": "turmeric.rajapuri"
+  },
+  {
+   "marketId": "hingoli",
+   "cropId": "turmeric",
+   "varietyRaw": "Other",
+   "minPerQtl": 11420,
+   "maxPerQtl": 15570,
+   "modalPerQtl": 13490,
+   "typeCode": "turmeric.parpeth"
+  },
+  {
+   "marketId": "hingoli",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4230,
+   "maxPerQtl": 4800,
+   "modalPerQtl": 4540
+  },
+  {
+   "marketId": "hingoli",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7390,
+   "maxPerQtl": 8340,
+   "modalPerQtl": 7920,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "hingoli",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7350,
+   "maxPerQtl": 8270,
+   "modalPerQtl": 7860,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 6740,
+   "maxPerQtl": 7430,
+   "modalPerQtl": 7080
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4220,
+   "maxPerQtl": 4780,
+   "modalPerQtl": 4530
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6710,
+   "maxPerQtl": 7570,
+   "modalPerQtl": 7190,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7500,
+   "maxPerQtl": 8440,
+   "modalPerQtl": 8030,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5440,
+   "maxPerQtl": 6080,
+   "modalPerQtl": 5790,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 6040,
+   "maxPerQtl": 6860,
+   "modalPerQtl": 6450,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 2980,
+   "maxPerQtl": 4100,
+   "modalPerQtl": 3540,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "jalna",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2140,
+   "maxPerQtl": 2700,
+   "modalPerQtl": 2420,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1150,
+   "maxPerQtl": 2710,
+   "modalPerQtl": 1980
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 770,
+   "maxPerQtl": 1910,
+   "modalPerQtl": 1340,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 660,
+   "maxPerQtl": 1610,
+   "modalPerQtl": 1140,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 7170,
+   "maxPerQtl": 7900,
+   "modalPerQtl": 7530
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4010,
+   "maxPerQtl": 4540,
+   "modalPerQtl": 4300
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3250,
+   "maxPerQtl": 4470,
+   "modalPerQtl": 3860,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "sambhajinagar",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2210,
+   "maxPerQtl": 2790,
+   "modalPerQtl": 2500,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 6460,
+   "maxPerQtl": 7120,
+   "modalPerQtl": 6790
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "jowar",
+   "varietyRaw": "Maldandi",
+   "minPerQtl": 3400,
+   "maxPerQtl": 4680,
+   "modalPerQtl": 4040,
+   "typeCode": "jowar.maldandi"
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "jowar",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 2210,
+   "maxPerQtl": 2790,
+   "modalPerQtl": 2500,
+   "typeCode": "jowar.hybrid"
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5670,
+   "maxPerQtl": 6340,
+   "modalPerQtl": 6030,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5830,
+   "maxPerQtl": 6620,
+   "modalPerQtl": 6230,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7250,
+   "maxPerQtl": 8180,
+   "modalPerQtl": 7770,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "jalgaon",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7720,
+   "maxPerQtl": 8680,
+   "modalPerQtl": 8250,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1150,
+   "maxPerQtl": 2720,
+   "modalPerQtl": 1990
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 800,
+   "maxPerQtl": 2000,
+   "modalPerQtl": 1400,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 680,
+   "maxPerQtl": 1650,
+   "modalPerQtl": 1170,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "cotton",
+   "varietyRaw": "Medium Staple",
+   "minPerQtl": 7080,
+   "maxPerQtl": 7810,
+   "modalPerQtl": 7440
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "soybean",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 4130,
+   "maxPerQtl": 4690,
+   "modalPerQtl": 4440
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 7380,
+   "maxPerQtl": 8320,
+   "modalPerQtl": 7900,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7330,
+   "maxPerQtl": 8250,
+   "modalPerQtl": 7840,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5090,
+   "maxPerQtl": 5690,
+   "modalPerQtl": 5410,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "nagpur",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 5480,
+   "maxPerQtl": 6220,
+   "modalPerQtl": 5850,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "onion",
+   "varietyRaw": "Red",
+   "minPerQtl": 1090,
+   "maxPerQtl": 2570,
+   "modalPerQtl": 1870
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "tomato",
+   "varietyRaw": "Hybrid",
+   "minPerQtl": 800,
+   "maxPerQtl": 2000,
+   "modalPerQtl": 1400,
+   "typeCode": "tomato.hybrid"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "tomato",
+   "varietyRaw": "Local",
+   "minPerQtl": 650,
+   "maxPerQtl": 1580,
+   "modalPerQtl": 1110,
+   "typeCode": "tomato.gavthi"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "pomegranate",
+   "varietyRaw": "Bhagwa",
+   "minPerQtl": 3170,
+   "maxPerQtl": 15850,
+   "modalPerQtl": 9510
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "chana",
+   "varietyRaw": "Chafa",
+   "minPerQtl": 5320,
+   "maxPerQtl": 5950,
+   "modalPerQtl": 5660,
+   "typeCode": "chana.chafa"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "chana",
+   "varietyRaw": "Kabuli",
+   "minPerQtl": 6260,
+   "maxPerQtl": 7100,
+   "modalPerQtl": 6680,
+   "typeCode": "chana.katya"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "tur",
+   "varietyRaw": "Red",
+   "minPerQtl": 6770,
+   "maxPerQtl": 7640,
+   "modalPerQtl": 7250,
+   "typeCode": "tur.lal"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "tur",
+   "varietyRaw": "White",
+   "minPerQtl": 7290,
+   "maxPerQtl": 8200,
+   "modalPerQtl": 7790,
+   "typeCode": "tur.pandhari"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "turmeric",
+   "varietyRaw": "Rajapuri",
+   "minPerQtl": 12510,
+   "maxPerQtl": 17200,
+   "modalPerQtl": 14590,
+   "typeCode": "turmeric.rajapuri"
+  },
+  {
+   "marketId": "vashi",
+   "cropId": "turmeric",
+   "varietyRaw": "Other",
+   "minPerQtl": 10820,
+   "maxPerQtl": 14760,
+   "modalPerQtl": 12790,
+   "typeCode": "turmeric.parpeth"
+  },
+  {
+   "marketId": "dadar",
+   "cropId": "marigold",
+   "varietyRaw": "Orange",
+   "minPerQtl": 2050,
+   "maxPerQtl": 6160,
+   "modalPerQtl": 4100,
+   "typeCode": "marigold.keshri"
+  },
+  {
+   "marketId": "dadar",
+   "cropId": "marigold",
+   "varietyRaw": "Yellow",
+   "minPerQtl": 1790,
+   "maxPerQtl": 5170,
+   "modalPerQtl": 3480,
+   "typeCode": "marigold.pivla"
+  }
+ ]
+}

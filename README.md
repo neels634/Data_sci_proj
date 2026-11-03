@@ -44,7 +44,7 @@ To maintain product integrity, crop capabilities are partitioned into distinct t
 | Capability / Module | Status | Privacy & Data Storage | Details |
 |---|---|---|---|
 | **AI Crop Check (`/crop-check`)** | **REAL LOCAL MODEL (When Present)** | **Sent to Backend** | Uploaded leaf close-up photos are sent via HTTP POST to the local FastAPI backend (`/api/predict`). Photos are not stored on a public server. |
-| **Plot Stress Timeline (`/crops/my/[id]`)** | **REAL LOCAL DATA** | **Device LocalStorage** | Farmer observations (notes, dates, and canvas-compressed photo thumbnails) are stored strictly in browser `localStorage` (`udyamsetu-state-v5`). Photos never leave the device. |
+| **Plot Stress Timeline (`/crops/my/[id]`)** | **REAL LOCAL DATA** | **Device LocalStorage** | Farmer observations (notes, dates, and canvas-compressed photo thumbnails) are stored strictly in browser `localStorage` (`udyamsetu-state-v7`). Photos never leave the device. |
 | **Case Summary Generator** | **REAL CLIENT LOGIC** | **Device LocalStorage** | Generates copyable plain text for WhatsApp/SMS with plot metadata and chronological stress logs. Does not embed photos. |
 | **Area-level Signal** | **DEMO PLACEHOLDER** | **Client State** | Visibly marked with a `<DemoBadge />`. Neutral illustrative text without numbers or color scales to prevent confusion with official survey damage indices. |
 | **Mandi Mitra (`/mandi`)** | **DEMO DATA** | **Client Seed Data** | Wholesale prices, distances, and rates in `lib/market.ts` are sample figures marked as demo data. |
@@ -132,9 +132,9 @@ accounts). Every role has a Home tab, and the logo also returns to Home.
 
 | Role | Screens | Works end to end |
 | --- | --- | --- |
-| Farmer / entrepreneur | Welcome & profile, Home, Schemes (search, filter, detail, save, track status, ask Mitra, report), Sell (new listing with validation, listing progress, offers with fee breakdown, accept/decline), Business guides + cost calculator + saved plans, **My Farm** (today's tasks across crops with done/skip, my crops with stage and harvest window, add a crop in 3 steps, crop detail with timeline, activity log and spray safety warnings, Crop Library with search for 8 Maharashtra crops), My activity, Help | ✓ |
-| Gaon Mandi Mitra | Farmer requests → pool into a lot, lot detail with farmer-wise record and settlement summary, mark dispatched/completed, earnings | ✓ |
-| Buyer | Browse pooled lots with filters, make an offer, my offers | ✓ |
+| Farmer / entrepreneur | Welcome & profile, Home, Schemes (search, filter, detail, save, track status, ask Mitra, report), **Mandi Mitra** (home with what is waiting, a tap-only sell wizard: crop → type → grade → dry? → quantity, "don't know" always allowed, more than one grade at once; My listings by step; the Mitra's check result to accept; "I've dried it"; offers with fee breakdown, accept/decline), Business guides + cost calculator + saved plans, **My Farm** (today's tasks across crops with done/skip, my crops with stage and harvest window, add a crop in 3 steps, crop detail with timeline, activity log and spray safety warnings, Crop Library with search for 8 Maharashtra crops), My activity, Help | ✓ |
+| Gaon Mandi Mitra | To check / recheck today / ready, grouped by village → quality check (grade, moisture meter, ready / needs drying / lower grade, recheck date) → pool only matching, accepted listings into a lot, lot detail with farmer-wise record and settlement summary, mark dispatched/completed, earnings | ✓ |
+| Buyer | Mitra-checked lots with grade, unit and moisture, crop / type / grade filter chips, offer per lot unit, my offers | ✓ |
 | Admin | Activity overview, verify / flag / archive schemes, resolve reports | ✓ |
 
 My Farm demo: log in as the **Farmer** → Home shows **My Farm** with a task badge → open it → tick today's
@@ -142,9 +142,55 @@ irrigation task → the log sheet opens prefilled → Save → "Last irrigation:
 "You are here" on the timeline and the harvest window → **Crop Library** → search "कांदा" → **Grow this crop**
 → add a second onion plot. Sunita's onion and planned chana are demo data with dates relative to today.
 
-Try this path: log in as the **Farmer** → Sell → New listing → log out, log in as the **Mitra** → select
-listings → Create pooled lot → log in as the **Buyer** → open the lot → Send offer → log in as the
-**Farmer** → Sell → open the listing → Accept.
+Try this path (Mandi Mitra, see `lib/grades.ts`): log in as the **Farmer** → Mandi Mitra → **I want to sell** →
+Soybean → "Don't know" for grade → "Don't know" for dry → 15 → Send. It shows "⏳ The Mitra will check your
+crop". Log in as the **Mitra** → **Check** the soybean → grade, meter 14% → "Needs drying" is suggested →
+Save. Back as the farmer, the result card says "A little too much moisture" (the number only under "See
+details") → "I've dried it". As the Mitra, it is in **Recheck today** → meter 11% → Ready → Save. The farmer
+taps **Accept**; the Mitra → **Make a lot** → Soybean → it is listed → tick it → Create lot.
+As the **Buyer** → the lot shows grade, "Mitra-checked" and moisture → **Make an offer** (₹ per quintal; onion
+lots are per 10 kg) → as the farmer → open the listing → Accept.
+
+Grades: 10 crops (onion, tomato, soybean, cotton, tur, chana, jowar, pomegranate, turmeric, marigold) with the
+names mandis use and a picture for each. Grade names vary by market, so the Mitra confirms every listing;
+turmeric and marigold are drafts to confirm with traders. Unsure, unchecked, damp or not-yet-accepted
+listings can't be pooled, and a lot never mixes crop, type or grade. `npm run check:grades` checks the
+grade data. Saved data from before grading moves over as "not graded" listings waiting for a check; use
+**Reset app data** to load the new demo listings.
+
+## Today's rates and the best market
+
+- **आजचे भाव / Today's rates** (`/mandi/rates`): pick a crop from the same 10-crop grid as "I want to
+  sell", then see every mandi's modal / min / max rate per variety, sorted by highest rate, nearest, or
+  best net for one quintal. Each market also shows an **estimated** rate per local grade (the grade's
+  place in the min–max band, `pricePosition` in `lib/grades.ts`, draft values) or a **Mitra rate** when a
+  Mitra entered one today (`/mitra/rates`).
+- **माल विकायचा आहे / I want to sell**: choose several grades with a quantity each (e.g. सुपर गोळे 100 kg +
+  गोल्टी 1000 kg) → the top 3 mandis by estimated net after vehicle hire (round trip) and market charges,
+  plus a split plan when sending grades to different mandis earns at least ₹500 and 3% more → **Take
+  Mandi Mitra's help** (one listing per grade with the preferred market) or **I'll sell myself** (a saved
+  plan with map links; no listing).
+- Engine: `lib/mandi/profit.ts` (road km ≈ straight-line × 1.3; vehicles and ₹/km are editable draft
+  defaults), checked by `npm run check:profit`. Markets and coordinates: `lib/mandi/markets.ts`
+  (approximate, marked TODO verify); district HQs: `lib/mandi/districts.ts`.
+- The farmer's location (GPS rounded to 2 decimals, or a district) stays on the phone; distances are
+  worked out on the device.
+
+**Live rates.** Add a free key from [data.gov.in](https://data.gov.in) (sign up → My account → generate
+API key) to `.env.local`:
+
+```bash
+DATA_GOV_IN_API_KEY=your-key
+```
+
+`/api/mandi-prices?crop=onion` then fetches today's Maharashtra rows of the dataset "Current Daily Price
+of Various Commodities from Various Markets (Mandi)", keeps them for 3 hours, and the phone keeps the last
+live answer for when the network fails ("Last available"). Commodity names are in
+`lib/mandi/commodities.ts`; open `/api/mandi-prices?discover=1` once with the key to list the names the
+dataset really uses and correct that table. **Without a key, or when the API fails, every number comes
+from `lib/mandi/sample-prices.json` and is marked "Sample rates (example)".** The demo farmer is near
+Phaltan, so onion सुपर गोळे 1 qtl + गोल्टी 10 qtl shows Phaltan, Lonand and Baramati and a split plan
+(super gole to Lonand, golti to Phaltan); Phaltan has one Mitra-entered golti rate today.
 
 ## Mandi Mitra (where, when and how to sell)
 
@@ -193,7 +239,7 @@ login of its own and spends your Earth Engine quota, so don't expose it publicly
 - `lib/types.ts` — data model (mirrors the PRD entities)
 - `lib/data.ts` — seed / demo data
 - `lib/store.tsx` — in-memory store and all actions (stands in for the future Supabase backend).
-  Saved to localStorage as `udyamsetu-state-v5`; older v4 data is upgraded once, keeping accounts.
+  Saved to localStorage as `udyamsetu-state-v7`; older data (v4–v6) is upgraded once, keeping accounts.
 - `lib/crops.ts` — Crop Library: 8 crops with seasons, stages, tasks and care notes. General guidance
   only, marked "Not yet verified" until an agronomist reviews it (no chemical names with doses).
 - `lib/speech.ts`, `lib/marathi-numbers.ts`, `components/speech.tsx` — read-aloud (see below).

@@ -4,12 +4,13 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { CURRENT_BUYER_ID } from "@/lib/data";
-import { Badge, Card, Empty, PageHeader, rupees, statusTone } from "@/components/ui";
+import { Badge, Card, Empty, PageHeader, statusTone } from "@/components/ui";
+import { useMandiText } from "@/components/mandi";
 
 export default function BuyerOffers() {
   const { state, l, lbl, date } = useStore();
   const mine = state.offers.filter((o) => o.buyerId === CURRENT_BUYER_ID);
-  const qtl = l("qtl", "क्विंटल");
+  const t = useMandiText();
   return (
     <div>
       <PageHeader back="/buyer" title={l("My offers", "माझ्या ऑफर")} sub={l("Track offers you sent to village lots.", "गावातील लॉटना पाठवलेल्या ऑफरची स्थिती पाहा.")} />
@@ -24,12 +25,12 @@ export default function BuyerOffers() {
                 <Card>
                   <div className="flex items-center justify-between">
                     <p className="font-bold">
-                      {lot && lbl(lot.crop)} {l("lot", "लॉट")}
+                      {lot && `${t.crop(lot.crop)} · ${t.grade(lot.gradeCode)}`}
                     </p>
                     <Badge tone={statusTone(o.status)}>{lbl(o.status)}</Badge>
                   </div>
                   <p className="text-[15px]">
-                    {rupees(o.pricePerQuintal)}/{qtl} · {o.quantity} {qtl}
+                    {t.money(o.pricePerUnit)}/{t.unit(o.unit, true)} · {t.qty(o.quantity, o.unit)}
                   </p>
                   <p className="text-sm text-muted">
                     {l("Sent", "पाठवली")} {date(o.createdAt)} · {l("lot status", "लॉटची स्थिती")}: {lot && lbl(lot.status)}

@@ -22,6 +22,8 @@ const eslintConfig = [
       "frontend/**",
       "crop-check/**",
       "backend/**",
+      // the Android app wraps the web app; its bundled scripts are not app source
+      "android/**",
     ],
   },
 ];

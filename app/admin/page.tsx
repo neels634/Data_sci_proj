@@ -4,19 +4,21 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { lotQuantity, useStore } from "@/lib/store";
 import type { ListingStatus } from "@/lib/types";
+import { toQuintals } from "@/lib/grades";
+import { STATUS_UI } from "@/lib/status-ui";
 import { Card, Note, PageHeader, SectionTitle } from "@/components/ui";
 
-const STATUSES: ListingStatus[] = ["With Mitra", "Submitted", "In lot", "Offer received", "Accepted", "Dispatched", "Completed", "Cancelled"];
+const STATUSES: ListingStatus[] = ["waiting_check", "needs_drying", "low_grade", "ready", "pooled", "cancelled"];
 
 export default function AdminOverview() {
-  const { state: s, l, lbl } = useStore();
+  const { state: s, l, tx } = useStore();
   const verified = s.schemes.filter((x) => x.lastVerified && x.status === "active").length;
   const live = s.schemes.filter((x) => x.status !== "archived");
   const unverified = live.filter((x) => !x.lastVerified).length;
   const openReports = s.reports.filter((r) => r.status === "Open").length;
   const accepted = s.offers.filter((o) => o.status === "Accepted").length;
   const withOffer = s.listings.filter((x) => x.lotId && s.offers.some((o) => o.lotId === x.lotId)).length;
-  const aggregated = s.lots.reduce((a, x) => a + lotQuantity(x, s.listings), 0);
+  const aggregated = Math.round(s.lots.reduce((a, x) => a + toQuintals(lotQuantity(x, s.listings), x.unit), 0));
 
   const kpis: [string, string | number, string][] = [
     [l("Produce listings", "मालाच्या नोंदी"), s.listings.length, l("farmer-entered", "शेतकऱ्यांनी नोंदवलेल्या")],
@@ -53,7 +55,7 @@ export default function AdminOverview() {
       <Card className="space-y-2">
         {counts.map(([st, n]) => (
           <div key={st} className="grid grid-cols-[7.5rem_1fr_1.5rem] items-center gap-2 text-sm">
-            <span className="text-muted">{lbl(st)}</span>
+            <span className="text-muted">{tx(STATUS_UI[st].pill)}</span>
             <span className="h-3 rounded-full bg-sand">
               <span className="block h-3 rounded-full bg-leaf-600" style={{ width: `${(n / max) * 100}%` }} />
             </span>

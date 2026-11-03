@@ -1,5 +1,6 @@
 import type { Bi, Text } from "./i18n";
 import type { FieldHistory, PolygonGeometry } from "./satellite";
+import type { Unit } from "./grades";
 
 export type Role = "farmer" | "mitra" | "buyer" | "admin";
 export type Lang = "en" | "mr";
@@ -51,38 +52,64 @@ export interface FarmerProfile {
   consent: boolean;
 }
 
-export type ListingStatus =
-  | "Submitted"
-  | "With Mitra"
-  | "In lot"
-  | "Offer received"
-  | "Accepted"
-  | "Dispatched"
-  | "Completed"
-  | "Cancelled";
+/** Where a farmer's listing is. Once pooled, the lot's status carries offers and dispatch. */
+export type ListingStatus = "waiting_check" | "ready" | "needs_drying" | "low_grade" | "pooled" | "cancelled";
+
+/** One quality check by the Mitra */
+export interface CheckRecord {
+  at: string; // YYYY-MM-DD
+  by: Text; // Mitra name
+  gradeCode: string;
+  moisture?: number; // % from the meter
+  result: ListingStatus;
+}
 
 export interface Listing {
   id: string;
   farmer: Text;
   /** account id of the farmer who listed it; null for other farmers */
   owner: string | null;
+  /** Crop Library id, e.g. "onion" */
   crop: string;
-  quantity: number; // quintals
-  grade: "A" | "B" | "C" | "Ungraded";
+  /** जात / प्रत, e.g. "tomato.hybrid"; missing when the crop has none or the farmer doesn't know */
+  typeCode?: string;
+  /** farmer's choice, e.g. "onion.super_gole", or "unsure" */
+  gradeCode: string;
+  dryness?: "dry" | "damp" | "unsure";
+  quantity: number;
+  unit: Unit;
   village: Text;
   availableFrom: string;
-  expectedPrice: number | null; // ₹ per quintal, indicative
-  wantsMitra: boolean;
+  expectedPrice?: number | null; // ₹ per unit, indicative (older listings)
+  /** older listings: the quality text they were saved with */
+  notes?: string;
   status: ListingStatus;
   lotId: string | null;
   createdAt: string;
+  mitraMoisture?: number;
+  mitraGradeCode?: string;
+  gradeConfirmedByMitra: boolean;
+  farmerAccepted: boolean;
+  recheckOn?: string; // YYYY-MM-DD
+  /** the farmer tapped "I've dried it" */
+  dryRequestedAt?: string;
+  checkHistory: CheckRecord[];
+  /** the market chosen in the farmer's best-market plan */
+  preferredMarketId?: string;
+  /** the estimate the farmer saw when listing */
+  planSnapshot?: { marketId: string; ratePerQtl: number; rateSource: "live" | "cached" | "sample" | "mitra"; estNet: number; date: string };
 }
 
 export interface Lot {
   id: string;
   crop: string;
+  typeCode?: string;
+  /** every listing in a lot has this grade; "unsure" only on lots from before grading */
+  gradeCode: string;
+  unit: Unit;
+  /** where the Mitra plans to sell this lot */
+  targetMarketId?: string;
   listingIds: string[];
-  grades: string[];
   village: Text;
   availableFrom: string;
   mitra: Text;
@@ -94,11 +121,35 @@ export interface Offer {
   id: string;
   lotId: string;
   buyerId: string;
-  pricePerQuintal: number;
+  /** ₹ per lot unit (quintal, 10 kg, crate or kg) */
+  pricePerUnit: number;
+  unit: Unit;
+  /** in the lot unit */
   quantity: number;
   terms: Text;
   status: "Submitted" | "Accepted" | "Declined";
   createdAt: string;
+}
+
+/** "I'll sell myself": the farmer's saved best-market plan (no listing) */
+export interface SellPlan {
+  id: string;
+  owner: string;
+  cropId: string;
+  typeCode?: string;
+  items: { gradeCode: string; qtyQtl: number; marketId: string }[];
+  vehicleId: string;
+  perKm: number;
+  estNet: number;
+  createdAt: string;
+}
+
+/** where the farmer is, for distances; kept on the phone only, rounded to 2 decimals */
+export interface FarmLocation {
+  lat: number;
+  lng: number;
+  source: "gps" | "district";
+  districtId?: string;
 }
 
 export interface Buyer {

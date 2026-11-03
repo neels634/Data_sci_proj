@@ -14,9 +14,8 @@ import {
   seedAccounts,
   seedBuyers,
   seedGuides,
-  seedListings,
-  seedLots,
-  seedOffers,
+  seedMandi,
+  SEED_FARMER_LOCATION,
   seedProfile,
   seedReports,
   seedSchemes,
@@ -26,6 +25,9 @@ import { bi, fmtDate, label, tx, type Bi, type Text } from "./i18n";
 import { fmtNum } from "./marathi-numbers";
 import { profileFromAccount, type Account } from "./account";
 import { occurrences, todayISO } from "./lifecycle";
+import { convert, gradingFor, UNSURE, type Unit } from "./grades";
+import type { MitraRate } from "./mandi/prices";
+import type { VehicleChoice } from "./mandi/profit";
 import type {
   ActivityItem,
   BusinessPlan,
@@ -36,6 +38,9 @@ import type {
   Listing,
   Lot,
   Offer,
+  CheckRecord,
+  FarmLocation,
+  SellPlan,
   Report,
   Role,
   Scheme,
@@ -76,10 +81,18 @@ interface AppState {
   farmActivities: FarmActivity[];
   taskStates: TaskState[];
   stressObservations: StressObservation[];
+  /** Mandi Mitra: grade-wise rates a Mitra entered for one market and day */
+  mitraRates: MitraRate[];
+  /** "I'll sell myself" plans */
+  sellPlans: SellPlan[];
+  /** each account's location for distances (on this phone only) and vehicle choice */
+  locationBy: Record<string, FarmLocation>;
+  vehicleBy: Record<string, VehicleChoice>;
 }
 
 const initialState = (): AppState => {
   const farm = seedFarm(todayISO());
+  const mandi = seedMandi(todayISO());
   return {
   role: "farmer",
   lang: "en",
@@ -91,9 +104,9 @@ const initialState = (): AppState => {
   bookmarksBy: { [SEED_FARMER_ACCOUNT]: ["pm-kisan"] },
   trackerBy: { [SEED_FARMER_ACCOUNT]: { "pm-kisan": "Applied" } },
   enterpriseBy: {},
-  listings: seedListings,
-  lots: seedLots,
-  offers: seedOffers,
+  listings: mandi.listings,
+  lots: mandi.lots,
+  offers: mandi.offers,
   plans: [],
   reports: seedReports,
   activityBy: {
@@ -109,10 +122,15 @@ const initialState = (): AppState => {
   farmActivities: farm.activities,
   taskStates: farm.taskStates,
   stressObservations: [],
+  mitraRates: mandi.mitraRates,
+  sellPlans: [],
+  locationBy: { [SEED_FARMER_ACCOUNT]: SEED_FARMER_LOCATION },
+  vehicleBy: {},
   };
 };
 
-const STORAGE_KEY = "udyamsetu-state-v6";
+const STORAGE_KEY = "udyamsetu-state-v7";
+const V6_STORAGE_KEY = "udyamsetu-state-v6";
 const V5_STORAGE_KEY = "udyamsetu-state-v5";
 const V4_STORAGE_KEY = "udyamsetu-state-v4";
 /** What survives the v4 → v5 upgrade. Women & SHG data (enterprises, enquiries) is dropped. */
@@ -124,17 +142,64 @@ const toV6 = (saved: Partial<AppState>): Partial<AppState> => ({
   farmCrops: (saved.farmCrops ?? []).map((c) => ({ ...c, kind: c.kind ?? "seasonal" })),
 });
 
+/**
+ * v6 → v7: Mandi Mitra grades. Old listings keep their quality as a note, become "not graded" and
+ * wait for the Mitra's check (pooled ones stay pooled); quantities were quintals; crops become
+ * Crop Library ids; offers become per lot unit.
+ */
+type Old = Record<string, unknown>;
+const toV7 = (saved: Partial<AppState>): Partial<AppState> => ({
+  ...saved,
+  listings: (saved.listings ?? []).map((x) => {
+    const o = x as unknown as Old;
+    if ("gradeCode" in o) return x;
+    const grade = o.grade as string | undefined;
+    return {
+      id: o.id as string,
+      farmer: o.farmer as Text,
+      owner: (o.owner as string | null) ?? null,
+      crop: String(o.crop).toLowerCase(),
+      gradeCode: UNSURE,
+      quantity: Number(o.quantity) || 0,
+      unit: "quintal",
+      village: o.village as Text,
+      availableFrom: (o.availableFrom as string) ?? today(),
+      expectedPrice: (o.expectedPrice as number | null) ?? null,
+      notes: grade && grade !== "Ungraded" ? `Grade ${grade}` : undefined,
+      status: o.lotId ? "pooled" : o.status === "Cancelled" ? "cancelled" : "waiting_check",
+      lotId: (o.lotId as string | null) ?? null,
+      createdAt: (o.createdAt as string) ?? today(),
+      gradeConfirmedByMitra: false,
+      farmerAccepted: false,
+      checkHistory: [],
+    } satisfies Listing;
+  }),
+  lots: (saved.lots ?? []).map((x) => {
+    const o = x as unknown as Old;
+    return "gradeCode" in o ? x : ({ ...(o as unknown as Lot), crop: String(o.crop).toLowerCase(), gradeCode: UNSURE, unit: "quintal" } as Lot);
+  }),
+  offers: (saved.offers ?? []).map((x) => {
+    const o = x as unknown as Old;
+    return "pricePerUnit" in o ? x : ({ ...(o as unknown as Offer), pricePerUnit: Number(o.pricePerQuintal) || 0, unit: "quintal" } as Offer);
+  }),
+});
+
 /** Saved data from before dark mode, or a damaged value, opens in the bright theme. */
 const withValidTheme = (saved: Partial<AppState>): Partial<AppState> => ({ ...saved, theme: saved.theme === "dark" ? "dark" : "bright" });
 
 /** Read saved state; upgrades older versions once without losing accounts or crops. */
 function loadSaved(): Partial<AppState> | null {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) return withValidTheme(toV6(JSON.parse(raw)));
+  if (raw) return withValidTheme(JSON.parse(raw));
+  const v6 = localStorage.getItem(V6_STORAGE_KEY);
+  if (v6) {
+    localStorage.removeItem(V6_STORAGE_KEY);
+    return withValidTheme(toV7(toV6(JSON.parse(v6))));
+  }
   const v5 = localStorage.getItem(V5_STORAGE_KEY);
   if (v5) {
     localStorage.removeItem(V5_STORAGE_KEY);
-    return withValidTheme(toV6(JSON.parse(v5)));
+    return withValidTheme(toV7(toV6(JSON.parse(v5))));
   }
   const old = localStorage.getItem(V4_STORAGE_KEY);
   if (!old) return null;
@@ -142,7 +207,7 @@ function loadSaved(): Partial<AppState> | null {
   const kept: Record<string, unknown> = { farmCrops: [], farmActivities: [], taskStates: [] };
   for (const k of V4_KEEP) if (k in v4) kept[k] = v4[k];
   localStorage.removeItem(V4_STORAGE_KEY);
-  return kept as Partial<AppState>;
+  return toV7(kept as Partial<AppState>);
 }
 const today = () => new Date().toISOString().slice(0, 10);
 const uid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -267,51 +332,105 @@ function useAppStore() {
           };
         }),
 
-      addListing: (l: Omit<Listing, "id" | "farmer" | "owner" | "status" | "lotId" | "createdAt">) =>
+      /** the farmer sends a crop for sale; the Mitra checks every listing before pooling */
+      addListing: (l: Pick<Listing, "crop" | "typeCode" | "gradeCode" | "dryness" | "quantity" | "unit" | "preferredMarketId" | "planSnapshot">) =>
         setState((s) => {
           const listing: Listing = {
             ...l,
             id: uid("p"),
             farmer: s.profile.name,
             owner: s.sessionId,
-            status: l.wantsMitra ? "With Mitra" : "Submitted",
+            village: s.profile.village,
+            availableFrom: today(),
+            status: "waiting_check",
             lotId: null,
             createdAt: today(),
+            gradeConfirmedByMitra: false,
+            farmerAccepted: false,
+            checkHistory: [],
           };
-          later(l.wantsMitra ? bi("Listing sent to your Mandi Mitra", "नोंद तुमच्या मंडी मित्राला पाठवली") : bi("Listing published", "नोंद प्रसिद्ध केली"));
+          const name = gradingFor(l.crop)?.name ?? bi(l.crop, l.crop);
           return {
             ...s,
             listings: [listing, ...s.listings],
-            activityBy: log(s, bi(`Listed ${l.quantity} qtl ${l.crop}`, `${l.quantity} क्विंटल ${label("mr", l.crop)} नोंदवला`)),
+            activityBy: log(s, bi(`Sent ${l.quantity} × ${l.unit} ${name.en} for sale`, `${fmtNum("mr", l.quantity)} ${name.mr} विक्रीसाठी पाठवला`)),
           };
         }),
       cancelListing: (id: string) =>
         setState((s) => {
+          if (!s.listings.some((l) => l.id === id && !l.lotId)) return s;
           later(bi("Listing cancelled", "नोंद रद्द केली"));
-          return { ...s, listings: s.listings.map((l) => (l.id === id ? { ...l, status: "Cancelled" } : l)) };
+          return { ...s, listings: s.listings.map((l) => (l.id === id ? { ...l, status: "cancelled" } : l)) };
+        }),
+      /** "I've dried it": the listing shows in the Mitra's recheck list now */
+      markDried: (id: string) =>
+        setState((s) => {
+          later(bi("Your Mitra will check it again", "मित्र पुन्हा तपासतील"));
+          return { ...s, listings: s.listings.map((l) => (l.id === id && l.status === "needs_drying" ? { ...l, dryRequestedAt: today() } : l)) };
+        }),
+      /** the farmer accepts the Mitra's check; a lower grade becomes ready to sell at that grade */
+      acceptCheck: (id: string) =>
+        setState((s) => {
+          later(bi("Accepted", "मान्य केले"));
+          return {
+            ...s,
+            listings: s.listings.map((l) => (l.id === id && !l.lotId ? { ...l, farmerAccepted: true, status: l.status === "low_grade" ? "ready" : l.status } : l)),
+          };
+        }),
+      /** the Mitra's quality check (also a recheck) */
+      checkListing: (id: string, c: { typeCode?: string; gradeCode: string; moisture?: number; result: Listing["status"]; recheckOn?: string }) =>
+        setState((s) => {
+          const rec: CheckRecord = { at: today(), by: s.accounts.find((a) => a.id === s.sessionId)?.name || CURRENT_MITRA, gradeCode: c.gradeCode, moisture: c.moisture, result: c.result };
+          later(bi("Check saved. The farmer can see it now.", "तपासणी जतन केली. शेतकऱ्याला आता दिसेल."));
+          return {
+            ...s,
+            listings: s.listings.map((l) =>
+              l.id === id && !l.lotId
+                ? {
+                    ...l,
+                    typeCode: c.typeCode ?? l.typeCode,
+                    mitraGradeCode: c.gradeCode,
+                    mitraMoisture: c.moisture,
+                    gradeConfirmedByMitra: true,
+                    farmerAccepted: false,
+                    status: c.result,
+                    recheckOn: c.result === "needs_drying" ? c.recheckOn : undefined,
+                    dryRequestedAt: undefined,
+                    checkHistory: [...l.checkHistory, rec],
+                  }
+                : l,
+            ),
+          };
         }),
 
-      createLot: (listingIds: string[]) =>
+      /** pool checked, accepted listings of one crop / type / grade; anything else is left out */
+      createLot: (listingIds: string[], targetMarketId?: string) =>
         setState((s) => {
-          const picked = s.listings.filter((l) => listingIds.includes(l.id));
+          const picked = s.listings.filter((l) => listingIds.includes(l.id) && poolable(l));
           if (!picked.length) return s;
-          const qty = picked.reduce((a, p) => a + p.quantity, 0);
+          const key = poolKey(picked[0]);
+          const same = picked.filter((p) => poolKey(p) === key);
+          const unit: Unit = gradingFor(same[0].crop)?.saleUnit ?? same[0].unit;
           const lot: Lot = {
             id: uid("l"),
-            crop: picked[0].crop,
-            listingIds,
-            grades: Array.from(new Set(picked.map((p) => p.grade))),
-            village: picked[0].village,
-            availableFrom: picked.map((p) => p.availableFrom).sort().at(-1)!,
+            crop: same[0].crop,
+            typeCode: same[0].typeCode,
+            gradeCode: same[0].mitraGradeCode ?? same[0].gradeCode,
+            unit,
+            targetMarketId: targetMarketId ?? mostCommon(same.map((p) => p.preferredMarketId)),
+            listingIds: same.map((p) => p.id),
+            village: same[0].village,
+            availableFrom: same.map((p) => p.availableFrom).sort().at(-1)!,
             mitra: CURRENT_MITRA,
             status: "Open for offers",
             createdAt: today(),
           };
-          later(bi(`Lot created: ${qty} qtl ${lot.crop}`, `लॉट तयार: ${qty} क्विंटल ${label("mr", lot.crop)}`));
+          const ids = new Set(lot.listingIds);
+          later(bi("Lot created", "लॉट तयार झाला"));
           return {
             ...s,
             lots: [lot, ...s.lots],
-            listings: s.listings.map((l) => (listingIds.includes(l.id) ? { ...l, status: "In lot", lotId: lot.id } : l)),
+            listings: s.listings.map((l) => (ids.has(l.id) ? { ...l, status: "pooled", lotId: lot.id } : l)),
           };
         }),
       advanceLot: (lotId: string) =>
@@ -319,26 +438,17 @@ function useAppStore() {
           const lot = s.lots.find((l) => l.id === lotId);
           if (!lot) return s;
           const next = lot.status === "Offer accepted" ? "Dispatched" : lot.status === "Dispatched" ? "Completed" : lot.status;
-          const listingStatus = next === "Dispatched" ? "Dispatched" : next === "Completed" ? "Completed" : undefined;
           later(bi(`Lot marked ${next}`, `लॉट: ${label("mr", next)}`));
-          return {
-            ...s,
-            lots: s.lots.map((l) => (l.id === lotId ? { ...l, status: next } : l)),
-            listings: listingStatus ? s.listings.map((l) => (l.lotId === lotId ? { ...l, status: listingStatus } : l)) : s.listings,
-          };
+          return { ...s, lots: s.lots.map((l) => (l.id === lotId ? { ...l, status: next } : l)) };
         }),
 
-      submitOffer: (o: Pick<Offer, "lotId" | "pricePerQuintal" | "quantity" | "terms">) =>
+      submitOffer: (o: Pick<Offer, "lotId" | "pricePerUnit" | "quantity" | "terms">) =>
         setState((s) => {
-          const offer: Offer = { ...o, id: uid("o"), buyerId: CURRENT_BUYER_ID, status: "Submitted", createdAt: today() };
+          const lot = s.lots.find((x) => x.id === o.lotId);
+          if (!lot) return s;
+          const offer: Offer = { ...o, unit: lot.unit, id: uid("o"), buyerId: CURRENT_BUYER_ID, status: "Submitted", createdAt: today() };
           later(bi("Offer sent. Farmers will review it with their Mitra.", "ऑफर पाठवली. शेतकरी मित्रासोबत ती पाहतील."));
-          return {
-            ...s,
-            offers: [offer, ...s.offers],
-            listings: s.listings.map((l) =>
-              l.lotId === o.lotId && (l.status === "In lot" || l.status === "With Mitra") ? { ...l, status: "Offer received" } : l,
-            ),
-          };
+          return { ...s, offers: [offer, ...s.offers] };
         }),
       respondToOffer: (offerId: string, accept: boolean) =>
         setState((s) => {
@@ -352,19 +462,33 @@ function useAppStore() {
                 o.id === offerId ? { ...o, status: "Accepted" } : o.lotId === offer.lotId && o.status === "Submitted" ? { ...o, status: "Declined" } : o,
               ),
               lots: s.lots.map((l) => (l.id === offer.lotId ? { ...l, status: "Offer accepted" } : l)),
-              listings: s.listings.map((l) => (l.lotId === offer.lotId ? { ...l, status: "Accepted" } : l)),
-              activityBy: log(s, bi(`Accepted offer of ₹${offer.pricePerQuintal}/qtl`, `₹${offer.pricePerQuintal}/क्विंटल ची ऑफर स्वीकारली`)),
+              activityBy: log(s, bi(`Accepted offer of ₹${offer.pricePerUnit} per ${offer.unit}`, `₹${fmtNum("mr", offer.pricePerUnit)} ची ऑफर स्वीकारली`)),
             };
           }
-          const offers = s.offers.map((o) => (o.id === offerId ? { ...o, status: "Declined" as const } : o));
-          const stillOpen = offers.some((o) => o.lotId === offer.lotId && o.status === "Submitted");
           later(bi("Offer declined", "ऑफर नाकारली"));
-          return {
-            ...s,
-            offers,
-            listings: stillOpen ? s.listings : s.listings.map((l) => (l.lotId === offer.lotId ? { ...l, status: "In lot" } : l)),
-          };
+          return { ...s, offers: s.offers.map((o) => (o.id === offerId ? { ...o, status: "Declined" as const } : o)) };
         }),
+
+      /** location stays in this browser; rounded so it is never more precise than ~1 km */
+      setLocation: (loc: FarmLocation) =>
+        setState((s) => ({ ...s, locationBy: { ...s.locationBy, [who(s)]: { ...loc, lat: Math.round(loc.lat * 100) / 100, lng: Math.round(loc.lng * 100) / 100 } } })),
+      setVehicle: (v: VehicleChoice) => setState((s) => ({ ...s, vehicleBy: { ...s.vehicleBy, [who(s)]: v } })),
+      saveSellPlan: (plan: Omit<SellPlan, "id" | "owner" | "createdAt">) =>
+        setState((s) => {
+          later(bi("Saved to My plans", "माझे नियोजन मध्ये जतन केले"));
+          return { ...s, sellPlans: [{ ...plan, id: uid("sp"), owner: who(s), createdAt: today() }, ...s.sellPlans] };
+        }),
+      /** a Mitra's grade-wise rates for one market and crop, for today; replaces their earlier ones */
+      saveMitraRates: (rates: Omit<MitraRate, "id" | "by" | "date">[]) =>
+        setState((s) => {
+          const d = todayISO(); // local date, same as the rate screens
+          const by = who(s);
+          const fresh = rates.map((x) => ({ ...x, id: uid("mr"), by, date: d }));
+          const same = (a: MitraRate) => fresh.some((f) => f.marketId === a.marketId && f.cropId === a.cropId && f.gradeCode === a.gradeCode && (f.typeCode ?? "") === (a.typeCode ?? "") && a.date === d);
+          later(bi("Today's rates saved", "आजचे दर जतन केले"));
+          return { ...s, mitraRates: [...fresh, ...s.mitraRates.filter((a) => !same(a))] };
+        }),
+      setLotTarget: (lotId: string, marketId: string) => setState((s) => ({ ...s, lots: s.lots.map((l) => (l.id === lotId ? { ...l, targetMarketId: marketId } : l)) })),
 
       savePlan: (plan: Omit<BusinessPlan, "id" | "savedAt" | "owner">) =>
         setState((s) => {
@@ -582,6 +706,9 @@ function useAppStore() {
       myFarmCrops: state.farmCrops.filter((c) => c.owner === sessionId),
       myFarmActivities: state.farmActivities.filter((a) => state.farmCrops.some((c) => c.id === a.farmCropId && c.owner === sessionId)),
       myTaskStates: state.taskStates.filter((t) => state.farmCrops.some((c) => c.id === t.farmCropId && c.owner === sessionId)),
+      myLocation: state.locationBy[key] as FarmLocation | undefined,
+      myVehicle: state.vehicleBy[key] ?? ({ vehicleId: "auto" } as VehicleChoice),
+      mySellPlans: state.sellPlans.filter((p) => p.owner === key),
       myStressObservations: (state.stressObservations || []).filter((o) => state.farmCrops.some((c) => c.id === o.farmCropId && c.owner === sessionId)),
     }),
     [state, key, sessionId],
@@ -609,9 +736,24 @@ export function useStore() {
 export const buyerById = (id: string) => seedBuyers.find((b) => b.id === id);
 export const guideById = (id: string) => seedGuides.find((g) => g.id === id);
 
+/** total of a lot, in the lot's unit */
 export function lotQuantity(lot: Lot, listings: Listing[]) {
-  return listings.filter((l) => lot.listingIds.includes(l.id)).reduce((a, l) => a + l.quantity, 0);
+  return listings.filter((l) => lot.listingIds.includes(l.id)).reduce((a, l) => a + convert(l.quantity, l.unit, lot.unit), 0);
 }
+
+/** only listings the Mitra checked as ready and the farmer accepted can be pooled */
+export const poolable = (l: Listing) => l.status === "ready" && l.farmerAccepted && !l.lotId && l.gradeConfirmedByMitra && (l.mitraGradeCode ?? l.gradeCode) !== UNSURE;
+/** the value seen most often (first on a tie) */
+function mostCommon<T>(xs: (T | undefined)[]): T | undefined {
+  const n = new Map<T, number>();
+  for (const x of xs) if (x !== undefined) n.set(x, (n.get(x) ?? 0) + 1);
+  return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+/** due for a Mitra recheck: the date has come, or the farmer says it's dried */
+export const dueRecheck = (x: Listing, today: string) => x.status === "needs_drying" && (!!x.dryRequestedAt || (!!x.recheckOn && x.recheckOn <= today));
+/** listings pool together only with the same crop, type and grade */
+export const poolKey = (l: Pick<Listing, "crop" | "typeCode" | "gradeCode" | "mitraGradeCode">) => `${l.crop}|${l.typeCode ?? ""}|${l.mitraGradeCode ?? l.gradeCode}`;
 
 /** Indicative only: matches profile answers to scheme tags. Never a guarantee of eligibility. */
 export function matchSchemes(schemes: Scheme[], p: FarmerProfile) {

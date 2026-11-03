@@ -2,14 +2,15 @@
 
 import { lotQuantity, useStore } from "@/lib/store";
 import { MITRA_FEE_PER_QUINTAL } from "@/lib/data";
+import { cropName, toQuintals } from "@/lib/grades";
 import { Badge, Card, Note, PageHeader, rupees, statusTone } from "@/components/ui";
 
 export default function MitraEarnings() {
-  const { state, l, lbl } = useStore();
+  const { state, l, lbl, tx, num } = useStore();
   const rows = state.lots
     .filter((x) => x.status !== "Open for offers")
     .map((lot) => {
-      const qty = lotQuantity(lot, state.listings);
+      const qty = Math.round(toQuintals(lotQuantity(lot, state.listings), lot.unit) * 100) / 100;
       return { lot, qty, fee: qty * MITRA_FEE_PER_QUINTAL };
     });
   const confirmed = rows.filter((r) => r.lot.status === "Completed").reduce((a, r) => a + r.fee, 0);
@@ -44,9 +45,9 @@ export default function MitraEarnings() {
           {rows.map(({ lot, qty, fee }) => (
             <Card key={lot.id} className="flex items-center justify-between gap-2">
               <span>
-                <span className="font-bold">{lbl(lot.crop)}</span>{" "}
+                <span className="font-bold">{tx(cropName(lot.crop))}</span>{" "}
                 <span className="text-muted">
-                  · {qty} {l("qtl", "क्विंटल")}
+                  · {num(qty)} {l("qtl", "क्विंटल")}
                 </span>
                 <span className="block">
                   <Badge tone={statusTone(lot.status)}>{lbl(lot.status)}</Badge>

@@ -1,86 +1,84 @@
 "use client";
 
+/** One listing: its status and Mitra check, and — once pooled — the lot and buyer offers to decide on. */
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Check, Flag, PackageOpen, Users } from "lucide-react";
+import { ArrowLeft, Flag, PackageOpen, Users } from "lucide-react";
 import { buyerById, lotQuantity, useStore } from "@/lib/store";
 import { bi } from "@/lib/i18n";
+import { convert } from "@/lib/grades";
 import { MITRA_FEE_PER_QUINTAL, TRANSPORT_SHARE_PER_QUINTAL } from "@/lib/data";
-import type { ListingStatus } from "@/lib/types";
-import { Badge, Button, Card, Empty, Note, PageHeader, cx, rupees, statusTone } from "@/components/ui";
-
-const FLOW: ListingStatus[] = ["Submitted", "In lot", "Offer received", "Accepted", "Dispatched", "Completed"];
+import { statusLine } from "@/lib/status-ui";
+import { SpeakButton } from "@/components/speech";
+import { CropAvatar, EmptyState, MitraResultCard, StatusPill, cardCls, useMandiText } from "@/components/mandi";
+import { Badge, Button, Note, cx, statusTone } from "@/components/ui";
 
 export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
-  const { state, l, tx, lbl, date, respondToOffer, cancelListing, addReport } = useStore();
+  const { state, l, tx, lbl, num, date, respondToOffer, addReport } = useStore();
+  const t = useMandiText();
   const x = state.listings.find((y) => y.id === id);
-  if (!x) return <Empty icon={<PackageOpen size={32} />} title={l("Listing not found", "नोंद सापडली नाही")} body={l("It may have been removed.", "ती काढून टाकली असू शकते.")} />;
+  if (!x) return <EmptyState title={l("Listing not found", "नोंद सापडली नाही")} action={<PackageOpen className="text-muted" />} />;
 
-  const qtl = l("qtl", "क्विंटल");
   const lot = x.lotId ? state.lots.find((y) => y.id === x.lotId) : undefined;
   const offers = lot ? state.offers.filter((o) => o.lotId === lot.id) : [];
-  const stepIndex = FLOW.indexOf(x.status === "With Mitra" ? "Submitted" : x.status);
-  const fee = x.quantity * MITRA_FEE_PER_QUINTAL;
-  const transport = x.quantity * TRANSPORT_SHARE_PER_QUINTAL;
+  const qtl = convert(x.quantity, x.unit, "quintal");
+  const fee = qtl * MITRA_FEE_PER_QUINTAL;
+  const transport = qtl * TRANSPORT_SHARE_PER_QUINTAL;
   const others = lot ? lot.listingIds.length - 1 : 0;
+  const title = `${t.crop(x.crop)} · ${t.listingGrade(x)}`;
+  const line = tx(statusLine(x.status, x.gradeCode));
 
   return (
-    <div>
-      <PageHeader
-        back="/sell"
-        title={`${lbl(x.crop)} · ${x.quantity} ${qtl}`}
-        sub={`${l("Grade", "श्रेणी")} ${lbl(x.grade)} · ${l("ready from", "तयार")} ${date(x.availableFrom)} · ${tx(x.village)}`}
-      />
-      <Badge tone={statusTone(x.status)} className="text-sm">
-        {lbl(x.status)}
-      </Badge>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Link href="/sell/my" aria-label={l("Back", "मागे")} className="grid size-12 place-items-center rounded-full bg-white text-leaf-700">
+          <ArrowLeft size={22} />
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate text-[22px] font-bold">{title}</h1>
+        <SpeakButton id={`detail-${x.id}`} text={`${title}. ${t.qty(x.quantity, x.unit)}. ${line}`} />
+      </div>
 
-      {x.status !== "Cancelled" && (
-        <Card className="mt-4">
-          <p className="mb-3 font-bold">{l("Progress", "प्रगती")}</p>
-          <ol>
-            {FLOW.map((step, i) => {
-              const done = i <= stepIndex;
-              return (
-                <li key={step} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <span className={cx("grid size-6 place-items-center rounded-full text-white", done ? "bg-leaf-700" : "bg-line")}>{done && <Check size={14} />}</span>
-                    {i < FLOW.length - 1 && <span className={cx("h-5 w-0.5", i < stepIndex ? "bg-leaf-700" : "bg-line")} />}
-                  </div>
-                  <span className={cx("text-[15px]", done ? "font-semibold text-ink" : "text-muted")}>
-                    {step === "Submitted" ? (x.wantsMitra ? l("Sent to Mitra", "मित्राकडे पाठवले") : l("Listed", "नोंदवले")) : lbl(step)}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </Card>
-      )}
+      <div className={cx(cardCls, "flex items-center gap-3 p-4")}>
+        <CropAvatar cropId={x.crop} size="lg" />
+        <div className="min-w-0 flex-1">
+          <p className="text-2xl font-bold text-leaf-900">{t.qty(x.quantity, x.unit)}</p>
+          <p className="text-sm text-muted">
+            {date(x.createdAt)} · {tx(x.village)}
+          </p>
+        </div>
+        <StatusPill status={x.status} />
+      </div>
+      <p className="text-[17px] font-semibold">{line}</p>
+      {x.notes && <p className="text-sm text-muted">{x.notes}</p>}
+
+      {x.gradeConfirmedByMitra && !lot && x.status !== "cancelled" && x.status !== "waiting_check" && <MitraResultCard listing={x} />}
 
       {lot && (
-        <Card className="mt-3 bg-leaf-50">
-          <p className="flex items-center gap-2 font-bold text-leaf-900">
-            <Users size={18} /> {l(`Pooled lot by ${tx(lot.mitra)}`, `${tx(lot.mitra)} यांचा एकत्रित लॉट`)}
+        <div className="rounded-2xl bg-indigo-50 p-4">
+          <p className="flex items-center gap-2 font-bold text-indigo-900">
+            <Users size={18} /> {l(`Lot by ${tx(lot.mitra)}`, `${tx(lot.mitra)} यांचा लॉट`)} · {lbl(lot.status)}
           </p>
           <p className="mt-1 text-[15px]">
             {l(
-              `Your ${x.quantity} qtl is combined with ${others} other farmer${others === 1 ? "" : "s"} — ${lotQuantity(lot, state.listings)} qtl total. Bigger lots attract more buyers and share transport cost.`,
-              `तुमचा ${x.quantity} क्विंटल माल इतर ${others} शेतकऱ्यांच्या मालासोबत एकत्र केला आहे — एकूण ${lotQuantity(lot, state.listings)} क्विंटल. मोठ्या लॉटला जास्त खरेदीदार मिळतात व वाहतूक खर्च वाटला जातो.`,
+              `Your crop is pooled with ${others} other farmer${others === 1 ? "" : "s"} of the same grade — ${t.qty(lotQuantity(lot, state.listings), lot.unit)} in all.`,
+              `तुमचा माल त्याच प्रतीच्या इतर ${num(others)} शेतकऱ्यांसोबत एकत्र केला आहे — एकूण ${t.qty(lotQuantity(lot, state.listings), lot.unit)}.`,
             )}
           </p>
-        </Card>
+        </div>
       )}
 
-      {offers.length > 0 && (
-        <>
-          <h2 className="mb-2 mt-6 text-lg font-bold">{l("Buyer offers", "खरेदीदारांच्या ऑफर")}</h2>
+      {offers.length > 0 && lot && (
+        <section>
+          <h2 className="mb-2 mt-3 text-xl font-bold">{l("Buyer offers", "खरेदीदारांच्या ऑफर")}</h2>
           <div className="space-y-3">
             {offers.map((o) => {
               const b = buyerById(o.buyerId);
-              const gross = o.pricePerQuintal * x.quantity;
+              const gross = o.pricePerUnit * convert(x.quantity, x.unit, o.unit);
               const net = gross - fee - transport;
+              const per = t.unit(o.unit, true);
               return (
-                <Card key={o.id} className={cx(o.status === "Declined" && "opacity-60")}>
+                <div key={o.id} className={cx(cardCls, "p-4", o.status === "Declined" && "opacity-60")}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-bold">{tx(b?.name)}</p>
@@ -90,36 +88,29 @@ export default function ListingDetail() {
                     </div>
                     <Badge tone={statusTone(o.status)}>{lbl(o.status)}</Badge>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge tone="gold">{l("Buyer-submitted price", "खरेदीदाराने सुचवलेली किंमत")}</Badge>
-                    {!b?.verified && <Badge tone="soil">{l("Buyer not verified", "खरेदीदार पडताळलेला नाही")}</Badge>}
-                  </div>
-                  <p className="mt-3 text-3xl font-bold text-leaf-900">
-                    {rupees(o.pricePerQuintal)}
-                    <span className="text-base font-semibold text-muted"> / {l("quintal", "क्विंटल")}</span>
+                  {!b?.verified && (
+                    <Badge tone="soil" className="mt-2">
+                      {l("Buyer not verified", "खरेदीदार पडताळलेला नाही")}
+                    </Badge>
+                  )}
+                  <p className="mt-2 text-3xl font-bold text-leaf-900">
+                    {t.money(o.pricePerUnit)}
+                    <span className="text-base font-semibold text-muted"> / {per}</span>
                   </p>
-                  <p className="text-sm text-muted">
-                    {l(`For ${o.quantity} qtl of the lot`, `लॉटमधील ${o.quantity} क्विंटलसाठी`)} · {tx(o.terms)}
-                  </p>
-
                   <div className="mt-3 rounded-xl bg-cream p-3 text-[15px]">
-                    <p className="mb-1 font-semibold">{l(`For your ${x.quantity} qtl`, `तुमच्या ${x.quantity} क्विंटलसाठी`)}</p>
+                    <p className="mb-1 font-semibold">{l(`For your ${t.qty(x.quantity, x.unit)}`, `तुमच्या ${t.qty(x.quantity, x.unit)} साठी`)}</p>
                     <dl className="grid grid-cols-[1fr_auto] gap-y-1">
                       <dt>{l("Price × quantity", "किंमत × प्रमाण")}</dt>
-                      <dd className="text-right">{rupees(gross)}</dd>
-                      <dt>{l(`Mitra service fee (₹${MITRA_FEE_PER_QUINTAL}/qtl)`, `मित्र सेवा शुल्क (₹${MITRA_FEE_PER_QUINTAL}/क्विं.)`)}</dt>
-                      <dd className="text-right text-soil">− {rupees(fee)}</dd>
-                      <dt>{l(`Shared transport (₹${TRANSPORT_SHARE_PER_QUINTAL}/qtl)`, `वाहतूक वाटा (₹${TRANSPORT_SHARE_PER_QUINTAL}/क्विं.)`)}</dt>
-                      <dd className="text-right text-soil">− {rupees(transport)}</dd>
+                      <dd className="text-right">{t.money(gross)}</dd>
+                      <dt>{l("Mitra service fee", "मित्र सेवा शुल्क")}</dt>
+                      <dd className="text-right text-soil">− {t.money(fee)}</dd>
+                      <dt>{l("Shared transport", "वाहतूक वाटा")}</dt>
+                      <dd className="text-right text-soil">− {t.money(transport)}</dd>
                       <dt className="border-t border-line pt-1 font-bold">{l("You receive (estimate)", "तुम्हाला मिळेल (अंदाजे)")}</dt>
-                      <dd className="border-t border-line pt-1 text-right font-bold text-leaf-900">{rupees(net)}</dd>
+                      <dd className="border-t border-line pt-1 text-right font-bold text-leaf-900">{t.money(net)}</dd>
                     </dl>
-                    <p className="mt-2 text-xs text-muted">
-                      {l("Final amount depends on weight and grade at weighing. No other charges.", "अंतिम रक्कम वजन व श्रेणीनुसार ठरेल. इतर कोणतेही शुल्क नाही.")}
-                    </p>
                   </div>
-
-                  {o.status === "Submitted" && lot?.status === "Open for offers" && (
+                  {o.status === "Submitted" && lot.status === "Open for offers" && (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Button variant="danger" onClick={() => respondToOffer(o.id, false)}>
                         {l("Decline", "नाकारा")}
@@ -129,34 +120,18 @@ export default function ListingDetail() {
                   )}
                   <button
                     onClick={() => addReport(bi(`Buyer: ${b?.name.en}`, `खरेदीदार: ${b?.name.mr}`), bi("Reported from an offer", "ऑफरमधून तक्रार"))}
-                    className="mt-2 flex min-h-10 items-center gap-1.5 text-sm font-semibold text-muted"
+                    className="mt-2 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted"
                   >
                     <Flag size={14} /> {l("Report this buyer", "या खरेदीदाराची तक्रार करा")}
                   </button>
-                </Card>
+                </div>
               );
             })}
           </div>
-          <p className="mt-2 text-xs text-muted">
-            {l("An offer is not a confirmed sale until weighing and payment are complete.", "वजन व पेमेंट पूर्ण होईपर्यंत ऑफर म्हणजे पक्की विक्री नाही.")}
-          </p>
-        </>
-      )}
-
-      {!lot && x.status !== "Cancelled" && (
-        <div className="mt-4">
-          <Note tone="green">
-            {x.wantsMitra
-              ? l("Your Mitra has your listing and will add it to a lot with nearby farmers.", "तुमची नोंद मित्राकडे आहे; तो ती जवळच्या शेतकऱ्यांसोबत लॉटमध्ये जोडेल.")
-              : l("Your listing is visible to buyers. You can still ask your Mitra for help.", "तुमची नोंद खरेदीदारांना दिसत आहे. तुम्ही अजूनही मित्राची मदत घेऊ शकता.")}
-          </Note>
-        </div>
-      )}
-
-      {["Submitted", "With Mitra"].includes(x.status) && (
-        <Button variant="danger" full className="mt-6" onClick={() => cancelListing(x.id)}>
-          {l("Cancel listing", "नोंद रद्द करा")}
-        </Button>
+          <div className="mt-2">
+            <Note>{l("An offer is not a sale until weighing and payment are done. Only you decide.", "वजन व पेमेंट होईपर्यंत ऑफर म्हणजे विक्री नाही. निर्णय फक्त तुमचा.")}</Note>
+          </div>
+        </section>
       )}
     </div>
   );

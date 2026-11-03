@@ -8,7 +8,8 @@
 import { bi } from "./i18n";
 import { emptyAccount, type Account } from "./account";
 import { addDays } from "./lifecycle";
-import type { Buyer, FarmActivity, FarmCrop, FarmerProfile, TaskState, Guide, Listing, Lot, Offer, Report, Scheme } from "./types";
+import type { MitraRate } from "./mandi/prices";
+import type { Buyer, FarmLocation, FarmActivity, FarmCrop, FarmerProfile, TaskState, Guide, Listing, Lot, Offer, Report, Scheme } from "./types";
 
 /** Mandi Mitra fee schedule, shown to farmers before they accept an offer. */
 export const MITRA_FEE_PER_QUINTAL = 30;
@@ -16,8 +17,10 @@ export const TRANSPORT_SHARE_PER_QUINTAL = 25;
 
 export const CURRENT_BUYER_ID = "b1";
 export const CURRENT_MITRA = bi("Ganesh Shinde", "गणेश शिंदे");
+/** the demo Mitra's number, for "Call Mitra" */
+export const MITRA_PHONE = "9876500002";
 export const VILLAGE = bi("Navgaon", "नवगाव");
-export const DISTRICT = bi("Pune", "पुणे");
+export const DISTRICT = bi("Satara", "सातारा");
 
 export const CROPS = ["Onion", "Tomato", "Soybean", "Pomegranate", "Jowar", "Groundnut", "Mango"];
 
@@ -261,42 +264,60 @@ const F = {
   shobha: bi("Shobha Kadam", "शोभा कदम"),
 };
 
-export const seedListings: Listing[] = [
-  { id: "p1", farmer: F.sunita, owner: "acc-farmer", crop: "Onion", quantity: 12, grade: "A", village: VILLAGE, availableFrom: "2026-11-05", expectedPrice: 2000, wantsMitra: true, status: "Offer received", lotId: "l1", createdAt: "2026-10-22" },
-  { id: "p2", farmer: F.ramesh, owner: null, crop: "Onion", quantity: 8, grade: "A", village: VILLAGE, availableFrom: "2026-11-04", expectedPrice: 1950, wantsMitra: true, status: "Offer received", lotId: "l1", createdAt: "2026-10-21" },
-  { id: "p3", farmer: F.vitthal, owner: null, crop: "Onion", quantity: 15, grade: "B", village: VILLAGE, availableFrom: "2026-11-06", expectedPrice: null, wantsMitra: true, status: "Offer received", lotId: "l1", createdAt: "2026-10-23" },
-  { id: "p4", farmer: F.sunita, owner: "acc-farmer", crop: "Tomato", quantity: 5, grade: "B", village: VILLAGE, availableFrom: "2026-11-12", expectedPrice: 1200, wantsMitra: false, status: "Submitted", lotId: null, createdAt: "2026-10-27" },
-  { id: "p5", farmer: F.anita, owner: null, crop: "Tomato", quantity: 6, grade: "A", village: VILLAGE, availableFrom: "2026-11-10", expectedPrice: 1300, wantsMitra: true, status: "With Mitra", lotId: null, createdAt: "2026-10-26" },
-  { id: "p6", farmer: F.dattatray, owner: null, crop: "Tomato", quantity: 9, grade: "A", village: VILLAGE, availableFrom: "2026-11-11", expectedPrice: null, wantsMitra: true, status: "With Mitra", lotId: null, createdAt: "2026-10-28" },
-  { id: "p7", farmer: F.shobha, owner: null, crop: "Soybean", quantity: 20, grade: "Ungraded", village: VILLAGE, availableFrom: "2026-11-02", expectedPrice: 4300, wantsMitra: true, status: "With Mitra", lotId: null, createdAt: "2026-10-25" },
-];
+const OTHER_VILLAGE = bi("Wadgaon", "वडगाव");
 
-export const seedLots: Lot[] = [
-  { id: "l1", crop: "Onion", listingIds: ["p1", "p2", "p3"], grades: ["A", "B"], village: VILLAGE, availableFrom: "2026-11-06", mitra: CURRENT_MITRA, status: "Open for offers", createdAt: "2026-10-24" },
-];
+/**
+ * Mandi Mitra demo: listings at every step, one pooled onion lot with a buyer offer.
+ * Quantities are in each crop's sale unit (onion: 10 kg, quintal for grains). Dates are relative to today.
+ */
+/** the demo farmer is near Phaltan (Satara); the location stays on the phone */
+export const SEED_FARMER_LOCATION: FarmLocation = { lat: 17.99, lng: 74.43, source: "district", districtId: "satara" };
 
-export const seedOffers: Offer[] = [
-  {
-    id: "o1",
-    lotId: "l1",
-    buyerId: "b1",
-    pricePerQuintal: 2050,
-    quantity: 35,
-    terms: bi("Pickup at village collection point; payment within 3 days of weighing", "गावातील संकलन केंद्रावरून उचल; वजनानंतर 3 दिवसांत पेमेंट"),
-    status: "Submitted",
-    createdAt: "2026-10-28",
-  },
-  {
-    id: "o2",
-    lotId: "l1",
-    buyerId: "b3",
-    pricePerQuintal: 1980,
-    quantity: 20,
-    terms: bi("Grade A only; buyer arranges transport", "फक्त अ श्रेणी; वाहतूक खरेदीदार करेल"),
-    status: "Submitted",
-    createdAt: "2026-10-29",
-  },
-];
+export function seedMandi(today: string): { listings: Listing[]; lots: Lot[]; offers: Offer[]; mitraRates: MitraRate[] } {
+  const d = (n: number) => addDays(today, n);
+  const base = { village: VILLAGE, availableFrom: today, lotId: null, gradeConfirmedByMitra: false, farmerAccepted: false, checkHistory: [] };
+  const checked = (gradeCode: string, at: string, result: Listing["status"], moisture?: number) => ({
+    mitraGradeCode: gradeCode,
+    gradeConfirmedByMitra: true,
+    mitraMoisture: moisture,
+    checkHistory: [{ at, by: CURRENT_MITRA, gradeCode, moisture, result }],
+  });
+  const listings: Listing[] = [
+    // Sunita: one onion grade checked and accepted, the small onions still waiting
+    { ...base, id: "p1", farmer: F.sunita, owner: SEED_FARMER_ACCOUNT, crop: "onion", gradeCode: "onion.super_gole", quantity: 80, unit: "10kg", status: "ready", createdAt: d(-4), ...checked("onion.super_gole", d(-3), "ready"), farmerAccepted: true },
+    { ...base, id: "p2", farmer: F.sunita, owner: SEED_FARMER_ACCOUNT, crop: "onion", gradeCode: "onion.golti", quantity: 30, unit: "10kg", status: "waiting_check", createdAt: d(-1) },
+    // Sunita's soybean: she didn't know grade or dryness; the meter read 14% → dry and recheck today
+    { ...base, id: "p3", farmer: F.sunita, owner: SEED_FARMER_ACCOUNT, crop: "soybean", gradeCode: "unsure", dryness: "unsure", quantity: 15, unit: "quintal", status: "needs_drying", recheckOn: today, createdAt: d(-4), ...checked("soybean.faq", d(-3), "needs_drying", 14) },
+    // neighbours: the pooled onion lot
+    { ...base, id: "p4", farmer: F.ramesh, owner: null, crop: "onion", gradeCode: "onion.super_gole", quantity: 60, unit: "10kg", status: "pooled", lotId: "l1", createdAt: d(-9), ...checked("onion.super_gole", d(-8), "ready"), farmerAccepted: true },
+    { ...base, id: "p5", farmer: F.vitthal, owner: null, crop: "onion", gradeCode: "onion.super_gole", quantity: 100, unit: "10kg", status: "pooled", lotId: "l1", createdAt: d(-8), ...checked("onion.super_gole", d(-8), "ready"), farmerAccepted: true },
+    // neighbours: other crops at different steps
+    { ...base, id: "p6", farmer: F.shobha, owner: null, crop: "cotton", gradeCode: "cotton.faq", dryness: "dry", quantity: 12, unit: "quintal", village: OTHER_VILLAGE, status: "waiting_check", createdAt: d(-2) },
+    { ...base, id: "p7", farmer: F.anita, owner: null, crop: "pomegranate", gradeCode: "pomegranate.no1", quantity: 900, unit: "kg", status: "ready", createdAt: d(-3), ...checked("pomegranate.no1", d(-2), "ready"), farmerAccepted: true },
+    { ...base, id: "p8", farmer: F.dattatray, owner: null, crop: "turmeric", typeCode: "turmeric.rajapuri", gradeCode: "turmeric.lagdi", dryness: "dry", quantity: 18, unit: "quintal", village: OTHER_VILLAGE, status: "ready", createdAt: d(-5), ...checked("turmeric.lagdi", d(-4), "ready", 9), farmerAccepted: true },
+    { ...base, id: "p9", farmer: F.ramesh, owner: null, crop: "chana", typeCode: "chana.chafa", gradeCode: "chana.faq", dryness: "dry", quantity: 10, unit: "quintal", status: "ready", createdAt: d(-6), ...checked("chana.faq", d(-5), "ready", 11), farmerAccepted: true },
+    { ...base, id: "p10", farmer: F.anita, owner: null, crop: "marigold", typeCode: "marigold.keshri", gradeCode: "marigold.no1", quantity: 250, unit: "kg", village: OTHER_VILLAGE, status: "waiting_check", createdAt: d(0) },
+  ];
+  const lots: Lot[] = [
+    { id: "l1", crop: "onion", gradeCode: "onion.super_gole", unit: "10kg", listingIds: ["p4", "p5"], village: VILLAGE, availableFrom: d(2), mitra: CURRENT_MITRA, status: "Open for offers", createdAt: d(-7) },
+  ];
+  const offers: Offer[] = [
+    {
+      id: "o1",
+      lotId: "l1",
+      buyerId: "b1",
+      pricePerUnit: 205,
+      unit: "10kg",
+      quantity: 160,
+      terms: bi("Pickup at village collection point; payment within 3 days of weighing", "गावातील संकलन केंद्रावरून उचल; वजनानंतर 3 दिवसांत पेमेंट"),
+      status: "Submitted",
+      createdAt: d(-2),
+    },
+  ];
+  // a Mitra-entered onion rate at Phaltan today, so the "Mitra rate" chip shows
+  const mitraRates: MitraRate[] = [{ id: "mr1", marketId: "phaltan", cropId: "onion", gradeCode: "onion.golti", perQtl: 1750, date: today, by: "acc-mitra" }];
+  return { listings, lots, offers, mitraRates };
+}
 
 const FSSAI = bi(
   "Check FSSAI registration and labelling rules before selling packaged food.",
@@ -419,10 +440,10 @@ export const seedAccounts: Account[] = [
     gender: "female",
     ageGroup: "36-45",
     education: "10th",
-    district: "Pune",
-    taluka: "Junnar",
+    district: "Satara",
+    taluka: "Phaltan",
     village: "Navgaon",
-    pincode: "410502",
+    pincode: "415523",
     landOwnedAcres: "3",
     landLeasedAcres: "1",
     irrigation: ["well", "drip"],

@@ -14,6 +14,8 @@
     "check:field": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/fieldHealth.check.ts",
     "check:marathi": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/marathi-numbers.check.ts",
     "check:briefing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/farm-briefing.check.ts",
+    "check:grades": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/grades.check.ts",
+    "check:profit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/mandi/profit.check.ts",
     "tts:pregen": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pregen-tts.ts",
     "check:crops": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/crops/validate.check.ts",
     "crops:index": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-crop-index.ts"

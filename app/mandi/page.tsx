@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ArrowRight, Check, ClipboardList, Info, Pencil, Truck, TriangleAlert, Users } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { bi } from "@/lib/i18n";
+import { UNSURE } from "@/lib/grades";
 import {
   CROP_OPTIONS,
   GRADE_OPTIONS,
@@ -48,7 +49,8 @@ export default function MandiMitra() {
   const [decided, setDecided] = useState<TownId | null>(null);
 
   const mine = state.listings.filter(isMine);
-  const offersWaiting = mine.filter((x) => x.status === "Offer received").length;
+  const myLots = new Set(mine.map((x) => x.lotId));
+  const offersWaiting = state.offers.filter((o) => myLots.has(o.lotId) && o.status === "Submitted").length;
 
   const quotes = useMemo(() => (input ? quoteAll(input) : []), [input]);
   const qtl = l("quintal", "क्विंटल");
@@ -160,16 +162,9 @@ export default function MandiMitra() {
   };
 
   const askMitra = () => {
-    addListing({
-      crop: input.crop,
-      quantity: input.quantity,
-      grade: input.grade,
-      village: state.profile.village,
-      availableFrom: new Date().toISOString().slice(0, 10),
-      expectedPrice: null,
-      wantsMitra: true,
-    });
-    router.push("/sell");
+    // grade is for the price estimate only; the Mitra checks the real grade
+    addListing({ crop: input.crop.toLowerCase(), gradeCode: UNSURE, quantity: input.quantity, unit: "quintal" });
+    router.push("/sell/my");
   };
 
   return (

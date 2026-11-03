@@ -4,9 +4,11 @@ import Link from "next/link";
 import { ChevronRight, Layers } from "lucide-react";
 import { lotQuantity, useStore } from "@/lib/store";
 import { Badge, Card, Empty, PageHeader, statusTone } from "@/components/ui";
+import { CropAvatar, useMandiText } from "@/components/mandi";
 
 export default function MitraLots() {
-  const { state, l, lbl, date } = useStore();
+  const { state, l, lbl, num, date } = useStore();
+  const t = useMandiText();
   return (
     <div>
       <PageHeader back="/mitra" title={l("My lots", "माझे लॉट")} sub={l("Pooled produce from several farmers, ready for buyers.", "अनेक शेतकऱ्यांचा एकत्र केलेला माल, खरेदीदारांसाठी तयार.")} />
@@ -22,12 +24,11 @@ export default function MitraLots() {
                 <Card className="flex items-center gap-3">
                   <div className="flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-lg font-bold">{lbl(lot.crop)}</p>
+                      <p className="flex items-center gap-2 text-lg font-bold"><CropAvatar cropId={lot.crop} size="sm" /> {t.crop(lot.crop)} · {t.grade(lot.gradeCode)}</p>
                       <Badge tone={statusTone(lot.status)}>{lbl(lot.status)}</Badge>
                     </div>
                     <p className="text-sm text-muted">
-                      {lotQuantity(lot, state.listings)} {l("qtl", "क्विंटल")} · {l(`${n} farmer${n === 1 ? "" : "s"}`, `${n} शेतकरी`)} · {l("grade", "श्रेणी")}{" "}
-                      {lot.grades.map(lbl).join("/")} · {l("created", "तयार")} {date(lot.createdAt)}
+                      {t.qty(lotQuantity(lot, state.listings), lot.unit)} · {l(`${n} farmer${n === 1 ? "" : "s"}`, `${num(n)} शेतकरी`)} · {l("created", "तयार")} {date(lot.createdAt)}
                     </p>
                     {offers > 0 && <p className="text-sm font-semibold text-soil">{l(`${offers} offer${offers > 1 ? "s" : ""} waiting for farmers`, `शेतकऱ्यांच्या निर्णयासाठी ${offers} ऑफर`)}</p>}
                   </div>

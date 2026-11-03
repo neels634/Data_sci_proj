@@ -11,7 +11,8 @@ import { todayISO, todayTasks } from "@/lib/lifecycle";
 export default function FarmerHome() {
   const { state, l, isMine } = useStore();
   // a small count on Mandi Mitra when buyers have sent offers, so they aren't missed
-  const offers = state.listings.filter((x) => isMine(x) && x.status === "Offer received").length;
+  const myLots = new Set(state.listings.filter(isMine).map((x) => x.lotId));
+  const offers = state.offers.filter((o) => myLots.has(o.lotId) && o.status === "Submitted").length;
   // My Farm: tasks due today (and overdue ones) across the farmer's crops
   const farmLib = useCrops(state.myFarmCrops.map((c) => c.cropId));
   const farmTasks = todayTasks(state.myFarmCrops, farmLib.get, state.myTaskStates, todayISO()).length;
@@ -37,7 +38,7 @@ export default function FarmerHome() {
       iconBg: isDark ? "#1b344a" : "#D5E8F7",
     },
     {
-      href: "/mandi",
+      href: "/sell",
       label: l("Mandi Mitra", "मंडी मित्र"),
       icon: <Image src="/icons/art_mandi.png" alt={l("Mandi Mitra", "मंडी मित्र")} width={44} height={44} className="object-contain" />,
       bg: isDark ? "#281e10" : "#FFF4DC",
