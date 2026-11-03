@@ -186,8 +186,8 @@ Only crop/task text is sent — never phone numbers, Aadhaar, addresses or full 
 | `NEXT_PUBLIC_TTS_CLOUD=1` | build time | lets the app use `/api/tts` |
 | `NEXT_PUBLIC_TTS_STATIC_BASE` | build time, optional | base URL of pre-generated clips (S3/CloudFront) instead of `/tts` |
 
-With Gemini, the text (already turned into Marathi words) is sent with a short "read this aloud in
-natural, warm Marathi" instruction; the reply is 24 kHz 16-bit mono audio, which the server returns
+With Gemini, only the text (already turned into Marathi words) is sent — no style instruction,
+because Gemini reads instructions aloud too; the reply is 24 kHz 16-bit mono audio, which the server returns
 as WAV (raw PCM from older models gets a WAV header added). Requests are up to 800 characters, the
 first one short so playback starts sooner; if the first clip takes longer than 6 s, or Gemini
 answers 400/403, the phone's voice is used; on 429 the app says "Online voice is busy" once.

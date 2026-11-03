@@ -6,7 +6,8 @@
  *   body { text, language_code, model, speaker, pace, speech_sample_rate, output_audio_codec },
  *   response { request_id, audios: [base64] }. Up to 2,500 characters per request.
  * - Gemini speech generation: POST .../v1beta/models/<model>:generateContent with
- *   responseModalities ["AUDIO"] and a prebuilt voice, same GEMINI_API_KEY as /api/chat. Returns
+ *   responseModalities ["AUDIO"] and a prebuilt voice, same GEMINI_API_KEY as /api/chat. Only the
+ *   prepared text is sent (any instruction text would be spoken). Returns
  *   base64 audio in candidates[0].content.parts[0].inlineData: raw 16-bit PCM (e.g.
  *   "audio/L16;codec=pcm;rate=24000", wrapped here in a WAV header) or, on newer models, a WAV.
  * - Google Cloud Text-to-Speech (mr-IN), kept as another option.
@@ -134,8 +135,6 @@ function google(): TtsProvider | null {
   };
 }
 
-const LANG_NAME: Record<TtsLang, string> = { mr: "Marathi", hi: "Hindi", en: "Indian English" };
-
 /** A 44-byte RIFF/WAVE header in front of 16-bit little-endian PCM. */
 export function pcmToWav(pcm: Uint8Array, sampleRate = 24000, channels = 1): Uint8Array {
   const out = new Uint8Array(44 + pcm.length);
@@ -170,12 +169,13 @@ function gemini(modelOverride?: string): TtsProvider | null {
     chunkChars: 800,
     firstChunkMs: 6000,
     voiceId: () => `gemini|${model}|${voice}`,
-    async synthesize(text, lang, override) {
+    async synthesize(text, _lang, override) {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Read this aloud in natural, warm ${LANG_NAME[lang]} at a calm pace, exactly as written:\n\n${text}` }] }],
+          // only the prepared text: any instruction in the prompt is read aloud too
+          contents: [{ parts: [{ text }] }],
           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: override || voice } } } },
         }),
         signal: AbortSignal.timeout(20_000),
