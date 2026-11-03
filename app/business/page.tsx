@@ -30,13 +30,13 @@ export default function Business() {
         )}
       </Card>
 
-      <Link href={state.enterprise.village ? "/business/discover" : "/business/village"} className="mt-3 block rounded-3xl bg-gradient-to-br from-leaf-700 to-leaf-900 p-4 text-white">
+      <Link href={state.enterprise.assets ? "/business/discover" : "/business/village"} className="mt-3 block rounded-3xl bg-gradient-to-br from-leaf-700 to-leaf-900 p-4 text-white">
         <p className="flex items-center gap-2 text-xl font-bold">
           <Store size={22} aria-hidden="true" /> {l("Gaon Tithe Udyojak", "गाव तिथे उद्योजक")}
         </p>
-        <p className="mt-1 text-[15px] text-white/90">{l("Which business could work in your village? Tell us what your village has. See 3 ideas, the reasons, and the money.", "तुमच्या गावात कोणता व्यवसाय चालू शकतो? गावात काय आहे ते सांगा. ३ कल्पना, त्यामागची कारणे व पैशांचा हिशोब पाहा.")}</p>
+        <p className="mt-1 text-[15px] text-white/90">{l("A small business you can start at home, from about ₹5,000. Tap what you have and see 3 ideas.", "साधारण ₹५,००० पासून घरी सुरू करता येणारा लहान व्यवसाय. तुमच्याकडे काय आहे त्यावर दाबा व ३ कल्पना पाहा.")}</p>
         <p className="mt-3 flex min-h-12 items-center justify-center gap-1 rounded-xl bg-white font-bold text-leaf-900">
-          {state.enterprise.village ? l("See my village’s ideas", "माझ्या गावाच्या कल्पना पाहा") : l("Find a business for my village", "माझ्या गावासाठी व्यवसाय शोधा")} <ChevronRight size={18} />
+          {state.enterprise.assets ? l("See my ideas", "माझ्या कल्पना पाहा") : l("Find a small business for me", "माझ्यासाठी लहान व्यवसाय शोधा")} <ChevronRight size={18} />
         </p>
       </Link>
 
