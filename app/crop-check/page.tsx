@@ -253,7 +253,7 @@ export default function CropCheckPage() {
       formData.append("image", imageBlob, "crop_leaf.jpg");
 
       // Connect to local ONNX FastAPI backend (MobileNetV2 38-class model)
-      const res = await fetch("http://localhost:8000/api/predict", {
+      const res = await fetch("/api/crop-check/predict", {
         method: "POST",
         body: formData,
       });

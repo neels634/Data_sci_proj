@@ -12,6 +12,7 @@ import { cropEntry } from "@/lib/crops";
 import { fieldReadiness, type Side } from "@/lib/fieldHealth";
 import { satelliteRequest, type SatelliteProblem } from "@/lib/satellite";
 import type { FarmCrop } from "@/lib/types";
+import { copyText } from "@/lib/copy";
 
 // Leaflet needs the browser, so the map can't be rendered on the server.
 const DrynessMap = dynamic(() => import("./DrynessMap"), { ssr: false, loading: () => <div className="h-64 rounded-2xl bg-slate-900" aria-busy="true" /> });
@@ -221,7 +222,7 @@ function DrynessCheck({ fc }: { fc: FarmCrop }) {
   const copy = async () => {
     try {
       const heading = [`Plot: ${tx(fc.plotName) || "My field"}`, `Area: ${fc.areaAcres} acres`, `Date of check: ${today}`, ""];
-      await navigator.clipboard.writeText([...heading, ...drynessLines(result, moisture, rain)].join("\n"));
+      await copyText([...heading, ...drynessLines(result, moisture, rain)].join("\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch {

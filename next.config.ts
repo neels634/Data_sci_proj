@@ -11,7 +11,12 @@ const nextConfig: NextConfig = {
   // the satellite service (backend/main.py) is reached through the app so it stays same-origin
   async rewrites() {
     const target = process.env.SATELLITE_API_URL ?? "http://127.0.0.1:8001";
-    return [{ source: "/api/satellite/:path*", destination: `${target}/api/:path*` }];
+    // through this server, because on a phone "localhost" would mean the phone itself
+    const cropCheck = process.env.CROP_CHECK_API_URL ?? "http://127.0.0.1:8000";
+    return [
+      { source: "/api/satellite/:path*", destination: `${target}/api/:path*` },
+      { source: "/api/crop-check/:path*", destination: `${cropCheck}/api/:path*` },
+    ];
   },
 };
 

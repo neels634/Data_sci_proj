@@ -10,6 +10,7 @@
     "check:lifecycle": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/lifecycle.check.ts",
     "check:dryness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/dryness.check.ts",
     "check:enterprise": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/enterprise.check.ts",
+    "check:sha256": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/sha256.check.ts",
     "check:field": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/fieldHealth.check.ts",
     "check:marathi": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/marathi-numbers.check.ts",
     "check:briefing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/farm-briefing.check.ts",

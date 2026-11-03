@@ -88,3 +88,8 @@ backend/models/*.h5
 backend/.venv/
 __pycache__/
 !.env.example
+
+# Android app: build output and the signing key stay on this machine
+android/build/
+android/*.keystore
+android/keystore.pass

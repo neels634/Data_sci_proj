@@ -11,6 +11,7 @@ import { addDays } from "@/lib/lifecycle";
 import { lastStageStart, readFieldHistory, recordLines } from "@/lib/fieldHistory";
 import { satelliteRequest, type HistoryPeriod, type SatelliteProblem } from "@/lib/satellite";
 import type { CropInfo, FarmCrop } from "@/lib/types";
+import { copyText } from "@/lib/copy";
 
 /** Bars are drawn against this greenness, near the top of what a dense crop reaches. */
 const CHART_TOP = 0.8;
@@ -63,7 +64,7 @@ export default function FieldRecord({ fc, crop, back }: { fc: FarmCrop; crop: Cr
     if (!history || !reading) return;
     const heading = [`Crop: ${crop.name.en}`, `Plot: ${tx(fc.plotName) || "My field"}`, `Area: ${fc.areaAcres} acres`, `Sowing date: ${fc.sowingDate ?? "Not recorded"}`, ""];
     try {
-      await navigator.clipboard.writeText([...heading, ...recordLines(fc, history, reading)].join("\n"));
+      await copyText([...heading, ...recordLines(fc, history, reading)].join("\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch {

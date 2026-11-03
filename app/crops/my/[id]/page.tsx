@@ -49,7 +49,8 @@ import { lastStageStart, readFieldHistory, recordLines } from "@/lib/fieldHistor
 import { Input } from "@/components/voice";
 import { SpeakButton } from "@/components/speech";
 import { ordinalMr, toAsciiDigits } from "@/lib/marathi-numbers";
-import { Button, Card, DemoBadge, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+import { Button, Card, DemoBadge, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+import { copyText } from "@/lib/copy";
 
 function compressObservationPhoto(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -232,7 +233,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
   const copySummaryToClipboard = async () => {
     try {
       const text = generateCaseSummaryText();
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       setCopiedSummary(true);
       toast(l("Case summary copied to clipboard!", "केस सारांश क्लिपबोर्डवर कॉपी झाला!"));
       setTimeout(() => setCopiedSummary(false), 3000);

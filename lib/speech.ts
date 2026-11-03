@@ -14,6 +14,7 @@
  *   second play works offline; pre-generated clips (public/tts/manifest.json) are used first.
  *   If the online voice fails or is slower than 4 s, the phone's voice is used for that playback.
  */
+import { sha256Hex } from "./sha256";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useStore } from "./store";
 
@@ -229,12 +230,7 @@ const audioEl = () => (sharedAudio ??= new Audio());
 
 /** Same key as scripts/pregen-tts.ts: sha256 of "voice\nlang\ntext", hex. */
 export async function clipKey(voice: string, lang: SpeechLang, text: string): Promise<string | null> {
-  try {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${voice}\n${lang}\n${text}`));
-    return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
-  } catch {
-    return null;
-  }
+  return sha256Hex(`${voice}\n${lang}\n${text}`);
 }
 
 type CloudVoice = { voice: string; chunkChars: number; firstChunkMs: number };

@@ -6,6 +6,7 @@
  */
 import { bi, type Bi } from "./i18n";
 import type { FarmerProfile, Role } from "./types";
+import { sha256Hex } from "./sha256";
 
 export type Option = { value: string; label: Bi };
 const o = (value: string, en: string, mr: string): Option => ({ value, label: bi(en, mr) });
@@ -269,11 +270,7 @@ export const BEST_TIME: Option[] = [
 export const optionLabel = (opts: Option[], value: string): Bi | undefined => opts.find((x) => x.value === value)?.label;
 
 export async function hashPin(mobile: string, pin: string): Promise<string> {
-  const data = new TextEncoder().encode(`udyamsetu:${mobile}:${pin}`);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return sha256Hex(`udyamsetu:${mobile}:${pin}`);
 }
 
 /** Farmer profile used across the app, derived from the sign-up answers. */
