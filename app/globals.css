@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-leaf-900: #143426;
   --color-leaf-700: #1f4d3a;
@@ -26,6 +28,75 @@ body {
   background: var(--color-sand);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+html.dark,
+.dark {
+  --color-cream: #151d18;
+  --color-sand: #0c120f;
+  --color-ink: #f1f7f3;
+  --color-muted: #a0b2a7;
+  --color-line: #283a30;
+  --color-leaf-100: #1c3629;
+  --color-leaf-50: #162a20;
+  --color-soil-100: #3c2317;
+  --color-gold-100: #382b11;
+  color-scheme: dark;
+}
+
+html.dark body,
+body.dark {
+  background-color: #0c120f;
+  color: #f1f7f3;
+}
+
+html.dark .bg-cream,
+.dark .bg-cream {
+  background-color: #151d18 !important;
+}
+
+html.dark .bg-white,
+.dark .bg-white {
+  background-color: #1c2721 !important;
+  color: #f1f7f3 !important;
+}
+
+html.dark .text-ink,
+.dark .text-ink {
+  color: #f1f7f3 !important;
+}
+
+html.dark .text-muted,
+.dark .text-muted {
+  color: #a0b2a7 !important;
+}
+
+html.dark .border-line,
+.dark .border-line {
+  border-color: #283a30 !important;
+}
+
+html.dark header,
+.dark header {
+  background-color: rgba(21, 29, 24, 0.95) !important;
+  border-color: #283a30 !important;
+}
+
+html.dark nav,
+.dark nav {
+  background-color: rgba(28, 39, 33, 0.95) !important;
+  border-color: #283a30 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea,
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #1c2721 !important;
+  color: #f1f7f3 !important;
+  border-color: #283a30 !important;
 }
 
 :focus-visible {

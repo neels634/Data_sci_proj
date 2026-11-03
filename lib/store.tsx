@@ -48,6 +48,7 @@ import type {
 interface AppState {
   role: Role;
   lang: Lang;
+  theme: "bright" | "dark";
   /** accounts registered in this browser; there is no server */
   accounts: Account[];
   /** id of the signed-in account, or null when signed out */
@@ -80,6 +81,7 @@ const initialState = (): AppState => {
   return {
   role: "farmer",
   lang: "en",
+  theme: "bright",
   accounts: seedAccounts,
   sessionId: null,
   profile: seedProfile,
@@ -110,12 +112,22 @@ const initialState = (): AppState => {
 const STORAGE_KEY = "udyamsetu-state-v5";
 const OLD_STORAGE_KEY = "udyamsetu-state-v4";
 /** What survives the v4 → v5 upgrade. Women & SHG data (enterprises, enquiries) is dropped. */
-const V4_KEEP = ["lang", "role", "profile", "accounts", "sessionId", "schemes", "listings", "lots", "offers", "plans", "bookmarksBy", "trackerBy", "reports", "activityBy"] as const;
+const V4_KEEP = ["lang", "theme", "role", "profile", "accounts", "sessionId", "schemes", "listings", "lots", "offers", "plans", "bookmarksBy", "trackerBy", "reports", "activityBy"] as const;
 
 /** Read saved state; upgrades v4 data once without losing accounts. */
 function loadSaved(): Partial<AppState> | null {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) return JSON.parse(raw);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed.theme || (parsed.theme !== "bright" && parsed.theme !== "dark")) {
+        parsed.theme = "bright";
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
   const old = localStorage.getItem(OLD_STORAGE_KEY);
   if (!old) return null;
   const v4 = JSON.parse(old) as Record<string, unknown>;
@@ -185,6 +197,13 @@ function useAppStore() {
     return {
       setRole: (role: Role) => setState((s) => ({ ...s, role })),
       setLang: (lang: Lang) => setState((s) => ({ ...s, lang })),
+      setTheme: (theme: "bright" | "dark") => setState((s) => ({ ...s, theme })),
+      toggleTheme: () =>
+        setState((s) => {
+          const next = s.theme === "dark" ? "bright" : "dark";
+          later(next === "dark" ? bi("Dark mode on", "रात्र मोड सुरू") : bi("Bright mode on", "दिवस मोड सुरू"));
+          return { ...s, theme: next };
+        }),
       /** create an account and sign in with it */
       register: (account: Account) =>
         setState((s) => {

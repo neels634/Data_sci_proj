@@ -14,12 +14,15 @@ import {
   PhoneCall,
   RefreshCw,
   Sparkles,
+  Square,
   Sun,
   Volume2,
   X,
   ZoomIn,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useSpeech, stopSpeech } from "@/lib/speech";
+import { SpeakButton } from "@/components/speech";
 import CropCheckFields from "@/components/satellite/CropCheckFields";
 import { Card, Badge, PageHeader, Button, DemoBadge, cx } from "@/components/ui";
 
@@ -135,7 +138,7 @@ export default function CropCheckPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [apiError, setApiError] = useState<{ title: string; detail: string } | null>(null);
-  const [speaking, setSpeaking] = useState(false);
+  const { speak: sayText, speakingId } = useSpeech();
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -146,9 +149,7 @@ export default function CropCheckPage() {
   // Cleanup speech synthesis on unmount
   useEffect(() => {
     return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeech();
     };
   }, []);
 
@@ -186,76 +187,33 @@ export default function CropCheckPage() {
     }
   };
 
-  const speakGuide = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast(l("Audio not supported on this device.", "या फोनवर ऑडिओ उपलब्ध नाही."));
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const text =
-      lang === "mr"
-        ? "फोटो काढण्यासाठी सोप्या पायऱ्या: १. दिवसाच्या सूर्यप्रकाशात फोटो काढा. २. रोगट पान मध्यभागी ठेवून १० ते १५ सेंटीमीटर अंतरावरून स्पष्ट जवळचा फोटो घ्या. पानावरील डाग स्पष्ट दिसले पाहिजेत."
-        : "How to take a photo for crop check: Step 1. Take a clear close-up photo in natural daylight. Step 2. Keep the affected leaf in the center, about 10 to 15 centimeters away, ensuring the disease spots are in sharp focus.";
+  const guideSpeechText =
+    lang === "mr"
+      ? "फोटो काढण्यासाठी सोप्या पायऱ्या: १. दिवसाच्या सूर्यप्रकाशात फोटो काढा. २. रोगट पान मध्यभागी ठेवून १० ते १५ सेंटीमीटर अंतरावरून स्पष्ट जवळचा फोटो घ्या. पानावरील डाग स्पष्ट दिसले पाहिजेत."
+      : "How to take a photo for crop check: Step 1. Take a clear close-up photo in natural daylight. Step 2. Keep the affected leaf in the center, about 10 to 15 centimeters away, ensuring the disease spots are in sharp focus.";
 
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang === "mr" ? "mr-IN" : "en-IN";
-    u.rate = 0.92;
-    window.speechSynthesis.speak(u);
-  };
-
-  const speakResult = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast(l("Audio not supported on this device.", "या फोनवर ऑडिओ उपलब्ध नाही."));
-      return;
-    }
-
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
-    }
-
-    if (!result) return;
-
-    window.speechSynthesis.cancel();
+  const diagnosisSpeechText = useCallback(() => {
+    if (!result) return "";
     const plantName = translatePlant(result.plant, lang);
 
     if (result.isUncertain || result.unsupportedCrop) {
-      const msg = lang === "mr" ? result.explanation.mr : result.explanation.en;
-      const u = new SpeechSynthesisUtterance(msg);
-      u.lang = lang === "mr" ? "mr-IN" : "en-IN";
-      u.rate = 0.92;
-      u.onend = () => setSpeaking(false);
-      u.onerror = () => setSpeaking(false);
-      setSpeaking(true);
-      window.speechSynthesis.speak(u);
-      return;
+      return lang === "mr" ? result.explanation.mr : result.explanation.en;
     }
 
-    const speechText =
-      lang === "mr"
-        ? `पीक: ${plantName}. रोग: ${result.disease}. तीव्रता: ${
-            result.severity === "high"
-              ? "गंभीर"
-              : result.severity === "medium"
-              ? "मध्यम"
-              : "कमी"
-          }. ${result.explanation.mr}. ${
-            result.cultural ? `उपाय: ${result.cultural.mr}.` : ""
-          } ${result.chemical ? `${result.chemical.mr}.` : ""}`
-        : `Crop: ${plantName}. Diagnosis: ${result.disease}. Severity: ${result.severity}. ${result.explanation.en}. ${
-            result.cultural ? `Actions: ${result.cultural.en}.` : ""
-          } ${result.chemical ? `${result.chemical.en}.` : ""}`;
-
-    const utterance = new SpeechSynthesisUtterance(speechText);
-    utterance.lang = lang === "mr" ? "mr-IN" : "en-IN";
-    utterance.rate = 0.92;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-
-    setSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  };
+    return lang === "mr"
+      ? `पीक: ${plantName}. रोग: ${result.disease}. तीव्रता: ${
+          result.severity === "high"
+            ? "गंभीर"
+            : result.severity === "medium"
+            ? "मध्यम"
+            : "कमी"
+        }. ${result.explanation.mr}. ${
+          result.cultural ? `उपाय: ${result.cultural.mr}.` : ""
+        } ${result.chemical ? `${result.chemical.mr}.` : ""}`
+      : `Crop: ${plantName}. Diagnosis: ${result.disease}. Severity: ${result.severity}. ${result.explanation.en}. ${
+          result.cultural ? `Actions: ${result.cultural.en}.` : ""
+        } ${result.chemical ? `${result.chemical.en}.` : ""}`;
+  }, [result, lang]);
 
   const runDiagnosis = async () => {
     if (!hasPrimaryPhoto) {
@@ -488,14 +446,12 @@ export default function CropCheckPage() {
                 )}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={speakGuide}
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-leaf-100 text-leaf-700 hover:bg-leaf-200 transition"
-              title={l("Listen to instructions", "सूचना ऐका")}
-            >
-              <Volume2 size={18} />
-            </button>
+            <SpeakButton
+              id="crop-check-guide"
+              text={guideSpeechText}
+              size="sm"
+              label={l("Listen to instructions", "सूचना ऐका")}
+            />
           </div>
         </div>
 
@@ -742,20 +698,12 @@ export default function CropCheckPage() {
               </div>
 
               {/* Speech Voice Button */}
-              <button
-                type="button"
-                onClick={speakResult}
-                className={cx(
-                  "grid size-12 shrink-0 place-items-center rounded-full border border-line shadow-sm transition",
-                  speaking
-                    ? "bg-soil text-white animate-pulse"
-                    : "bg-leaf-100 text-leaf-700 hover:bg-leaf-200"
-                )}
-                aria-label={l("Read out diagnosis", "निदान ऐका")}
-                title={l("Listen to diagnosis", "निदान ऐका")}
-              >
-                <Volume2 size={24} />
-              </button>
+              <SpeakButton
+                id="diagnosis-result"
+                text={diagnosisSpeechText}
+                label={l("Listen to diagnosis", "निदान ऐका")}
+                className="border border-line shadow-sm"
+              />
             </div>
 
             <p className="mt-3 text-sm leading-relaxed text-ink/80">
@@ -880,9 +828,7 @@ export default function CropCheckPage() {
                 setPhotos([null, null]);
                 setResult(null);
                 setApiError(null);
-                if (typeof window !== "undefined" && "speechSynthesis" in window) {
-                  window.speechSynthesis.cancel();
-                }
+                stopSpeech();
               }}
               className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-white font-semibold text-leaf-700 shadow-sm transition hover:bg-leaf-50"
             >
@@ -932,11 +878,20 @@ export default function CropCheckPage() {
             {/* Audio Listen Button */}
             <button
               type="button"
-              onClick={speakGuide}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-leaf-100 py-2.5 text-xs font-bold text-leaf-700 transition hover:bg-leaf-200"
+              onClick={() => sayText("crop-guide-modal", guideSpeechText)}
+              className={cx(
+                "mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition",
+                speakingId === "crop-guide-modal"
+                  ? "bg-soil text-white animate-pulse"
+                  : "bg-leaf-100 text-leaf-700 hover:bg-leaf-200"
+              )}
             >
-              <Volume2 size={16} />
-              <span>{l("Listen to Photo Guide in Marathi / English", "फोटो काढण्याचे मार्गदर्शन ऐका")}</span>
+              {speakingId === "crop-guide-modal" ? <Square size={16} fill="currentColor" /> : <Volume2 size={16} />}
+              <span>
+                {speakingId === "crop-guide-modal"
+                  ? l("Stop reading", "वाचन थांबवा")
+                  : l("Listen to Photo Guide in Marathi / English", "फोटो काढण्याचे मार्गदर्शन ऐका")}
+              </span>
             </button>
 
             <div className="mt-4 space-y-3">
