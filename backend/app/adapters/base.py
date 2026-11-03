@@ -116,8 +116,7 @@ class BaseModelAdapter(ABC):
                 "name": model_config.name,
                 "version": model_config.version,
                 "description": model_config.description,
-                "framework": model_config.framework,
-                "model_path": self.model_path,
+                "framework": self.model_type if hasattr(self, "model_type") else model_config.framework,
                 "input_shape": model_config.input_shape,
                 "num_classes": len(self.config.get_class_names()),
                 "labels": self.config.get_class_names(),
@@ -127,7 +126,7 @@ class BaseModelAdapter(ABC):
             # Fallback for when config is not available
             return {
                 "name": self.__class__.__name__,
-                "model_path": self.model_path,
+                "framework": self.model_type if hasattr(self, "model_type") else "unknown",
                 "input_shape": self.input_shape,
                 "num_classes": len(self.labels),
                 "labels": self.labels

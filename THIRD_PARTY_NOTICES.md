@@ -48,7 +48,7 @@
 
 ## 4. Demo Images (`public/demo-images/`)
 - `farm-overview-1.jpg`, `farm-overview-2.jpg`, `maize-leaf-disease.jpg`, `tomato-leaf-disease.jpg`
-- **Origin:** Generated synthetically during project prototyping via local subagent tooling.
+- **Origin:** Prototyping sample images in `public/demo-images/` are demo illustrations created during hackathon interface testing; they are not confirmed field photographs.
 - **Usage:** Demo and testing illustrations only; not real field photography.
 
 ---

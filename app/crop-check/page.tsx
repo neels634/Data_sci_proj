@@ -120,6 +120,7 @@ interface DiagnosisResult {
   preventive: { en: string; mr: string } | null;
   verifiedSource?: string;
   isUncertain?: boolean;
+  isCropMismatch?: boolean;
   unsupportedCrop?: boolean;
 }
 
@@ -314,7 +315,28 @@ export default function CropCheckPage() {
       const rawPlant = top.plant || "Crop";
       const confidence = top.confidence ?? 0;
 
-      // ── 1. Unsupported Crop check ───────────────────────────────────────────
+      // ── 1. Explicit Crop Mismatch Check ─────────────────────────────────────
+      if (data.crop_mismatch) {
+        setResult({
+          plant: data.selected_crop || rawPlant,
+          disease: l("Crop Mismatch Detected", "निवडलेले पीक व फोटोमध्ये तफावत"),
+          severity: "low",
+          confidence,
+          isCropMismatch: true,
+          isUncertain: true,
+          explanation: {
+            en: `The uploaded leaf features most closely resemble ${data.detected_crop || "a different species"}, but ${data.selected_crop || "another crop"} was selected. The prototype classifier cannot provide a reliable screening when crop species conflict. Please confirm your crop or retake a clear leaf photo.`,
+            mr: `अपलोड केलेले पान ${translatePlant(data.detected_crop || "", "mr")} सारखे दिसते, परंतु आपण ${translatePlant(data.selected_crop || "", "mr")} निवडले आहे. पीक प्रकार जुळत नसल्यामुळे मॉडेल खात्रीशीर तपासणी करू शकत नाही. कृपया पीक तपासा किंवा स्वच्छ फोटो पुन्हा काढा.`,
+          },
+          cultural: null,
+          chemical: null,
+          preventive: null,
+        });
+        toast(l("Crop mismatch detected.", "पीक प्रकार जुळत नाही."));
+        return;
+      }
+
+      // ── 2. Unsupported Crop check ───────────────────────────────────────────
       if (!isCropSupported(rawPlant)) {
         setResult({
           plant: rawPlant,
@@ -323,7 +345,7 @@ export default function CropCheckPage() {
           confidence,
           unsupportedCrop: true,
           explanation: {
-            en: `The AI model detected this as ${rawPlant}. This local model is only trained for 14 specific crops (${SUPPORTED_MODEL_CROPS.slice(0, 7).join(", ")}, etc.). For crops like onion, sugarcane, or cotton, please consult a local agriculture officer.`,
+            en: `The prototype model detected this as ${rawPlant}. This local model is only trained for 14 specific crops (${SUPPORTED_MODEL_CROPS.slice(0, 7).join(", ")}, etc.). For crops like onion, sugarcane, or cotton, please consult a local agriculture officer.`,
             mr: `AI मॉडेलने हे पीक ${translatePlant(rawPlant, "mr")} म्हणून ओळखले. हे स्थानिक मॉडेल फक्त १४ ठराविक पिकांसाठी प्रशिक्षित आहे. इतर पिकांसाठी (कांदा, कापूस, ऊस इ.) कृपया स्थानिक कृषी अधिकाऱ्यांशी संपर्क साधा.`,
           },
           cultural: null,
@@ -334,7 +356,7 @@ export default function CropCheckPage() {
         return;
       }
 
-      // ── 2. Low Confidence / Uncertainty Check ────────────────────────────────
+      // ── 3. Low Confidence / Uncertainty Check ────────────────────────────────
       if (confidence < 0.60 || data.uncertainty_detected) {
         setResult({
           plant: rawPlant,
@@ -343,8 +365,8 @@ export default function CropCheckPage() {
           confidence,
           isUncertain: true,
           explanation: {
-            en: `The AI model confidence is ${Math.round(confidence * 100)}% (below the 60% reliable threshold). The image may have glare, poor focus, or atypical symptoms. Please retake a sharp, well-lit close-up in natural daylight or consult a local Krishi Kendra.`,
-            mr: `AI मॉडेलची अचूकता ${Math.round(confidence * 100)}% आहे (६०% खात्रीशीर मर्यादेपेक्षा कमी). फोटोमध्ये सावली किंवा अस्पष्टता असू शकते. कृपया स्वच्छ उजेडात पुन्हा फोटो काढा किंवा स्थानिक कृषी केंद्राचा सल्ला घ्या.`,
+            en: `The prototype model confidence score is ${Math.round(confidence * 100)}% (below demonstration threshold). Note: this score reflects model output probability and is not a calibrated probability of correctness. Please retake a sharp, well-lit close-up in natural daylight or consult a local Krishi Kendra.`,
+            mr: `AI मॉडेलचा विश्वास गुणांक ${Math.round(confidence * 100)}% आहे (डेमो निकषापेक्षा कमी). हा केवळ मॉडेलचा संभाव्यता गुणांक असून प्रत्यक्ष अचूकतेची खात्री नाही. कृपया चांगल्या उजेडात स्पष्ट फोटो पुन्हा काढा किंवा स्थानिक कृषी केंद्राचा सल्ला घ्या.`,
           },
           cultural: null,
           chemical: null,
@@ -361,7 +383,7 @@ export default function CropCheckPage() {
         ? l("Healthy Foliage (No Disease Detected)", "निरोगी झाड (कोणताही रोग नाही)")
         : top.disease.replace(/_/g, " ");
 
-      // ── 3. Verified Treatment Text only ────────────────────────────────────
+      // ── 4. Verified Treatment Text only ────────────────────────────────────
       const hasVerifiedTreatment = Boolean(top.treatment?.cultural || top.treatment?.chemical);
       const culturalEn = top.treatment?.cultural || null;
       const chemicalEn = top.treatment?.chemical || null;
@@ -384,9 +406,9 @@ export default function CropCheckPage() {
         explanation: {
           en:
             top.causes ||
-            `Diagnosed ${cleanDisease} with ${(confidence * 100).toFixed(1)}% AI confidence based on leaf inspection.`,
+            `Visual pattern matches ${cleanDisease} with ${(confidence * 100).toFixed(1)}% prototype model confidence score. This is an uncalibrated classifier probability, not a definitive laboratory diagnosis.`,
           mr:
-            `पानाच्या तपासणीवरून AI द्वारे ${(confidence * 100).toFixed(1)}% अचूकतेने '${cleanDisease}' चे निदान झाले आहे.`,
+            `पानाच्या प्राथमिक तपासणीवरून मॉडेलचा विश्वास गुणांक ${(confidence * 100).toFixed(1)}% आहे ('${cleanDisease}'). हे प्राथमिक मॉडेल अनुमान असून अधिकृत प्रयोगशाळा चाचणी नाही.`,
         },
         cultural: culturalEn ? { en: culturalEn, mr: culturalMr || culturalEn } : null,
         chemical: chemicalEn ? { en: chemicalEn, mr: chemicalMr || chemicalEn } : null,
@@ -793,7 +815,7 @@ export default function CropCheckPage() {
                       </div>
                     )}
 
-                    {/* Chemical/Organic Spray */}
+                    {/* Chemical Reference (Non-prescriptive) */}
                     {result.chemical && (
                       <div className="flex items-start gap-3 rounded-xl bg-soil-100/50 p-3">
                         <span className="grid size-6 shrink-0 place-items-center rounded-full bg-soil text-xs font-bold text-white">
@@ -801,10 +823,16 @@ export default function CropCheckPage() {
                         </span>
                         <div>
                           <p className="text-xs font-bold text-soil">
-                            {l("Spray Recommendation", "फवारणी सल्ला")}
+                            {l("Reference Chemical Information (Non-prescriptive)", "संदर्भ फवारणी माहिती (तज्ञांचा सल्ला आवश्यक)")}
                           </p>
                           <p className="text-sm text-ink/90 mt-0.5">
                             {lang === "mr" ? result.chemical.mr : result.chemical.en}
+                          </p>
+                          <p className="text-[11px] text-soil-700/80 mt-1 italic leading-tight">
+                            {l(
+                              "Advisory notice: Never apply chemicals based solely on an automated prototype. Consult a qualified local agriculture officer or KVK agronomist, and read the product label for authorized dosage and waiting periods.",
+                              "मार्गदर्शक सूचना: केवळ डिजिटल अनुमानावरून रासायनिक फवारणी करू नका. खरेदी किंवा वापरापूर्वी कृषी अधिकारी किंवा कृषी केंद्राचा सल्ला घ्या आणि लेबलवरील सूचना वाचा."
+                            )}
                           </p>
                         </div>
                       </div>
