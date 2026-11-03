@@ -113,11 +113,13 @@ export function zoneColor(value: number, middle: number): [number, number, numbe
   return [5, 150, 105];
 }
 
+/** The day this crop reached this field: a transplanted crop's early days are in the nursery. */
+export const fieldStart = (fc: Pick<FarmCrop, "sowingDate" | "transplantDate">) => fc.transplantDate ?? fc.sowingDate;
+
 /** Can this crop be checked today, and over which time windows (shortest first, widened if clouds hide the field)? */
 export function fieldReadiness(fc: Pick<FarmCrop, "status" | "sowingDate" | "transplantDate">, today: string): FieldReadiness {
   if (fc.status === "harvested" || fc.status === "abandoned") return { kind: "finished" };
-  // a transplanted crop's early days are in the nursery, not in this field
-  const start = fc.transplantDate ?? fc.sowingDate;
+  const start = fieldStart(fc);
   if (fc.status === "planned" || !start) return { kind: "not_sown" };
   const days = Math.round((Date.parse(today) - Date.parse(start)) / 86_400_000);
   if (days < YOUNG_CROP_DAYS) return { kind: "young", daysLeft: YOUNG_CROP_DAYS - Math.max(days, 0) };

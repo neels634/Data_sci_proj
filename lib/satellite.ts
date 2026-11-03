@@ -31,6 +31,11 @@ export type AnalysisResult = {
 
 export type ClearDate = { date: string; cloud_cover: number };
 
+/** One stretch of a field's season; `ndvi` is null when clouds hid most of the field. */
+export type HistoryPeriod = { from: string; to: string; ndvi: number | null };
+
+export type FieldHistory = { fetchedOn: string; periods: HistoryPeriod[] };
+
 /**
  * NDVI, EVI, SAVI and CVI use the colour bands directly. NDMI and NDWI sit on a different natural
  * range (NDWI over healthy crops is usually negative), so `domain` stretches them onto the same
@@ -141,6 +146,7 @@ const FAILURES: Record<string, Bi> = {
     "No clear view of this field in the last 90 days, or it’s too small to measure.",
     "गेल्या 90 दिवसांत या शेताचे स्वच्छ दृश्य मिळाले नाही, किंवा ते मोजण्यासाठी खूप लहान आहे.",
   ),
+  invalid_dates: bi("A record can only cover the last 12 months of this crop.", "नोंद या पिकाच्या फक्त गेल्या 12 महिन्यांची असू शकते."),
   earth_engine_unavailable: bi("Couldn’t connect to Earth Engine. Try again shortly.", "अर्थ इंजिनशी जोडणी झाली नाही. थोड्या वेळाने पुन्हा प्रयत्न करा."),
   earth_engine_error: bi("Earth Engine couldn’t finish this analysis. Try again.", "अर्थ इंजिन हे विश्लेषण पूर्ण करू शकले नाही. पुन्हा प्रयत्न करा."),
 };
@@ -153,7 +159,7 @@ export type SatelliteProblem = Bi & { retry?: boolean; code?: string };
 const TEMPORARY = new Set(["earth_engine_unavailable", "earth_engine_error"]);
 
 /** Call the satellite service. Throws a bilingual message the screen can show as is. */
-export async function satelliteRequest<T>(path: "analyze" | "analyze-dates", body: unknown, signal: AbortSignal): Promise<T> {
+export async function satelliteRequest<T>(path: "analyze" | "analyze-dates" | "field-history", body: unknown, signal: AbortSignal): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api/satellite/${path}`, {

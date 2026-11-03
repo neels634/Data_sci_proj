@@ -18,6 +18,7 @@ import { useStore } from "@/lib/store";
 import { bi } from "@/lib/i18n";
 import type { TrackerStatus } from "@/lib/types";
 import { Badge, Button, Card, Empty, Note, PageHeader, cx, inputCls } from "@/components/ui";
+import InsuranceFieldRecord from "@/components/satellite/InsuranceFieldRecord";
 import {
   evaluateSchemeEligibility,
   SCHEME_QUESTIONS,
@@ -254,6 +255,8 @@ export default function SchemeDetail() {
       </div>
 
       <p className="mt-3 text-[17px] leading-relaxed">{tx(s.summary)}</p>
+
+      {s.category === "Crop insurance" && account?.role === "farmer" && <InsuranceFieldRecord schemeId={s.id} />}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Button variant={saved ? "primary" : "secondary"} onClick={() => toggleBookmark(s.id)} aria-pressed={saved}>

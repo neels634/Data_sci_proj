@@ -63,7 +63,7 @@ export default function FieldCheck({ fc, crop, fromCropCheck }: { fc: FarmCrop; 
       setChecked(null);
       setRunning(true);
       const save = () => {
-        if (isNew) updateFarmCrop(fc.id, { boundary: polygon });
+        if (isNew) updateFarmCrop(fc.id, { boundary: polygon, fieldHistory: null });
       };
       try {
         const windows = lookbacks.split(",").map(Number);
@@ -104,7 +104,7 @@ export default function FieldCheck({ fc, crop, fromCropCheck }: { fc: FarmCrop; 
   const onDrawn = (polygon: PolygonGeometry) => {
     setBoundary(polygon);
     if (readiness.kind === "ready") return void check(polygon, true);
-    updateFarmCrop(fc.id, { boundary: polygon });
+    updateFarmCrop(fc.id, { boundary: polygon, fieldHistory: null });
   };
 
   const startDrawing = () => {

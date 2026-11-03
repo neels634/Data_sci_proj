@@ -2,6 +2,7 @@
 //   npm run check:field
 import assert from "node:assert/strict";
 import { assessField, fieldReadiness, zoneColor } from "./fieldHealth.ts";
+import { readFieldHistory, recordLines } from "./fieldHistory.ts";
 import type { AnalysisResult, PolygonGeometry, SampleFeature } from "./satellite.ts";
 
 // a square field about 220 m across, with sample points every 10 m (roughly 0.00009 degrees)
@@ -94,5 +95,38 @@ assert.deepEqual(fieldReadiness(crop("growing", "2026-08-04"), TODAY), { kind: "
 assert.deepEqual(fieldReadiness(crop("growing", "2026-01-01"), TODAY), { kind: "ready", lookbacks: [30, 60, 90] });
 // a transplanted crop counts from the day it reached this field
 assert.deepEqual(fieldReadiness(crop("growing", "2026-08-01", "2026-10-25"), TODAY), { kind: "young", daysLeft: 13 });
+
+// reading a season's record
+const season = (values: (number | null)[]) => ({ fetchedOn: TODAY, periods: values.map((ndvi, i) => ({ from: `2026-0${i + 1}-01`, to: `2026-0${i + 2}-01`, ndvi })) });
+assert.equal(readFieldHistory(season([0.2, null, null]), null).kind, "too_few");
+assert.equal(readFieldHistory(season([0.2, 0.4, 0.6, 0.55]), null).kind, "steady");
+{
+  const r = readFieldHistory(season([0.3, 0.6, 0.35, 0.5]), null);
+  assert.equal(r.kind, "fall");
+  if (r.kind === "fall") {
+    assert.equal(r.before.from, "2026-02-01");
+    assert.equal(r.after.to, "2026-04-01");
+    assert.equal(r.nearHarvest, false);
+  }
+}
+// a fall hidden behind cloudy periods is still found, and the biggest fall wins
+{
+  const r = readFieldHistory(season([0.7, null, 0.45, 0.6, 0.42]), null);
+  assert.ok(r.kind === "fall" && r.before.from === "2026-01-01" && r.after.from === "2026-03-01");
+}
+// a fall in the harvest stage is flagged as possibly normal
+{
+  const r = readFieldHistory(season([0.5, 0.7, 0.4]), "2026-03-01");
+  assert.ok(r.kind === "fall" && r.nearHarvest);
+}
+// the plain-text record names the source, marks cloud, and never claims to be an assessment
+{
+  const h = season([0.5, null, 0.3, 0.3]);
+  const lines = recordLines({ boundary } as never, h, readFieldHistory(h, null)).join(" | ");
+  assert.match(lines, /Sentinel-2/);
+  assert.match(lines, /no clear view/);
+  assert.match(lines, /not an official damage assessment/);
+  assert.match(lines, /17\.99/);
+}
 
 console.log("fieldHealth checks passed");

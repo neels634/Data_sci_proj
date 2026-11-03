@@ -41,6 +41,7 @@ import {
 import type { ActivityType, CropInfo, FarmCrop, StressObservation } from "@/lib/types";
 import { ACTIVITY, LogActivitySheet, NotVerified, SprayBanner, StageTimeline, TaskRow, useFarm } from "@/components/myfarm/ui";
 import { FieldCard } from "@/components/myfarm/FieldCard";
+import { lastStageStart, readFieldHistory, recordLines } from "@/lib/fieldHistory";
 import { Input } from "@/components/voice";
 import { SpeakButton } from "@/components/speech";
 import { ordinalMr, toAsciiDigits } from "@/lib/marathi-numbers";
@@ -200,6 +201,10 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
       });
     }
     lines.push("");
+    if (fc.fieldHistory) {
+      lines.push(...recordLines(fc, fc.fieldHistory, readFieldHistory(fc.fieldHistory, lastStageStart(fc, crop))));
+      lines.push("");
+    }
     lines.push("AREA-LEVEL CONTEXT:");
     lines.push("- Live Area Weather/Moisture: No live taluka-level feed connected.");
     lines.push("- Note: Area-level signals support awareness only; they do not prove plot-level damage or determine insurance eligibility.");

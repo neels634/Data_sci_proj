@@ -388,6 +388,9 @@ function useAppStore() {
           later(bi("Crop updated", "पीक अद्ययावत केले"));
           return { ...s, farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, ...patch } : c)) };
         }),
+      /** refreshed in the background of the record screen, so no "updated" message */
+      saveFieldHistory: (id: string, fieldHistory: FarmCrop["fieldHistory"]) =>
+        setState((s) => ({ ...s, farmCrops: s.farmCrops.map((c) => (c.id === id && c.owner === s.sessionId ? { ...c, fieldHistory } : c)) })),
       /** planned → growing, with the sowing recorded in the log */
       markSown: (id: string, date: string) =>
         setState((s) => {

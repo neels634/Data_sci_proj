@@ -1,5 +1,5 @@
 import type { Bi, Text } from "./i18n";
-import type { PolygonGeometry } from "./satellite";
+import type { FieldHistory, PolygonGeometry } from "./satellite";
 
 export type Role = "farmer" | "mitra" | "buyer" | "admin";
 export type Lang = "en" | "mr";
@@ -235,6 +235,8 @@ export interface FarmCrop {
   areaAcres: number;
   /** the field marked on the satellite map; missing until the farmer marks it */
   boundary?: PolygonGeometry | null;
+  /** the season's satellite record, kept so it opens without waiting and goes into the case summary */
+  fieldHistory?: FieldHistory | null;
   method: "direct" | "transplant";
   status: "planned" | "growing" | "harvested" | "abandoned";
   plannedSowingDate: string | null; // YYYY-MM-DD

@@ -39,6 +39,9 @@ INDEX_NAMES = ["ndvi", "evi", "savi", "ndmi", "ndwi", "gndvi", "cvi"]
 MAX_SAMPLE_POINTS = 5000
 MAX_VERTICES = 500
 SAMPLE_SCALES_M = (10, 20)
+HISTORY_PERIOD_DAYS = 15
+HISTORY_MAX_DAYS = 366
+HISTORY_MIN_CLEAR_SHARE = 0.5  # below this, clouds decide a period's value more than the crop does
 
 
 class AnalysisError(HTTPException):
@@ -53,6 +56,12 @@ class AnalyzeRequest(BaseModel):
     field_name: str = Field(default="Field 1", max_length=80)
     # My Farm asks for a shorter window so a young crop isn't judged on images from before sowing
     lookback_days: int = Field(default=LOOKBACK_DAYS, ge=7, le=LOOKBACK_DAYS)
+
+
+class HistoryRequest(BaseModel):
+    geometry: dict[str, Any]
+    start_date: date
+    end_date: date | None = None
 
 
 class DatesRequest(BaseModel):
@@ -276,6 +285,51 @@ def analyze(request: AnalyzeRequest) -> dict[str, Any]:
         },
         "farm_boundary": polygon,
     }
+
+
+def _period_greenness(region: ee.Geometry, scale: int, start: date, end: date) -> ee.Feature:
+    scenes = ee.ImageCollection(S2_COLLECTION).filterBounds(region).filterDate(start.isoformat(), end.isoformat())
+    # a period with no scenes has nothing to take a median of, so it becomes an empty image
+    ndvi = ee.Image(ee.Algorithms.If(scenes.size().gt(0), build_composite(scenes).normalizedDifference(["B8", "B4"]), ee.Image().float())).rename("ndvi")
+    reducer = ee.Reducer.mean().combine(ee.Reducer.count(), sharedInputs=True)
+    return ee.Feature(None, ndvi.reduceRegion(reducer=reducer, geometry=region, scale=scale, maxPixels=int(1e8), bestEffort=False))
+
+
+@app.post("/api/field-history")
+def field_history(request: HistoryRequest) -> dict[str, Any]:
+    polygon = validate_polygon(request.geometry)
+    today = datetime.now(timezone.utc).date()
+    last = min(request.end_date or today, today)
+    if request.start_date >= last or (last - request.start_date).days > HISTORY_MAX_DAYS:
+        raise AnalysisError(422, "invalid_dates", f"The record must cover 1 to {HISTORY_MAX_DAYS} days up to today.")
+    _ensure_earth_engine()
+    region = to_ee_geometry(polygon)
+
+    periods: list[tuple[date, date]] = []
+    cursor = request.start_date
+    while cursor < last:
+        following = min(cursor + timedelta(days=HISTORY_PERIOD_DAYS), last)
+        periods.append((cursor, following))
+        cursor = following
+
+    try:
+        area_m2 = region.area(maxError=1).getInfo()
+        scale = choose_scale(area_m2)
+        # filterDate's end is exclusive, so periods share their boundary dates without overlapping
+        rows = ee.FeatureCollection([_period_greenness(region, scale, a, b) for a, b in periods]).getInfo()["features"]
+    except AnalysisError:
+        raise
+    except Exception as exc:
+        raise _earth_engine_failure(exc) from exc
+
+    full_count = area_m2 / (scale * scale)
+    result = []
+    for (a, b), row in zip(periods, rows):
+        stats = row["properties"]
+        mean = stats.get("ndvi_mean")
+        clear = (stats.get("ndvi_count") or 0) >= full_count * HISTORY_MIN_CLEAR_SHARE
+        result.append({"from": a.isoformat(), "to": b.isoformat(), "ndvi": round(mean, 3) if clear and mean is not None else None})
+    return {"periods": result}
 
 
 @app.post("/api/analyze-dates")
