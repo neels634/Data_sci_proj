@@ -24,7 +24,7 @@ export default function AdminOverview() {
     [l("Buyer offers", "खरेदीदारांच्या ऑफर"), s.offers.length, l(`${accepted} accepted`, `${accepted} स्वीकारल्या`)],
     [l("Qtl in pooled lots", "लॉटमधील क्विंटल"), aggregated, l(`${s.lots.length} lots`, `${s.lots.length} लॉट`)],
     [l("Schemes verified", "पडताळलेल्या योजना"), `${verified}/${live.length}`, l("with source date", "स्रोत व तारखेसह")],
-    [l("Enterprise profiles", "उद्योग प्रोफाइल"), s.enterprises.length, l(`${s.enquiries.length} buyer enquiries`, `${s.enquiries.length} चौकशा`)],
+    [l("Crops being tracked", "नोंदवलेली पिके"), s.farmCrops.filter((c) => c.status === "growing").length, l(`${s.farmCrops.filter((c) => c.status === "planned").length} planned`, `${s.farmCrops.filter((c) => c.status === "planned").length} नियोजित`)],
   ];
   const counts = STATUSES.map((st) => [st, s.listings.filter((x) => x.status === st).length] as const).filter(([, n]) => n > 0);
   const max = Math.max(1, ...counts.map(([, n]) => n));

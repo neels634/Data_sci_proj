@@ -6,6 +6,7 @@ import { CURRENT_MITRA } from "@/lib/data";
 import { bi } from "@/lib/i18n";
 import { ROLE_HOME } from "@/components/AppShell";
 import { Button, Card, PageHeader, SectionTitle } from "@/components/ui";
+import { VoiceCheck } from "@/components/speech";
 
 const TERMS = [
   [
@@ -68,6 +69,11 @@ export default function Help() {
           )}
         </p>
       </div>
+
+      <SectionTitle>{l("Read aloud", "वाचून दाखवणे")}</SectionTitle>
+      <Card>
+        <VoiceCheck />
+      </Card>
 
       <SectionTitle>{l("Words explained", "शब्दांचे अर्थ")}</SectionTitle>
       <div className="space-y-2">

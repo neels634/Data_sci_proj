@@ -177,8 +177,8 @@ export function Term({ word, meaning }: { word: string; meaning: string }) {
 export const rupees = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 
 export function statusTone(status: string): Tone {
-  if (["Accepted", "Completed", "Approved", "Resolved", "Replied"].includes(status)) return "green";
-  if (["Offer received", "Open for offers", "Offer accepted", "New", "Applied"].includes(status)) return "gold";
+  if (["Accepted", "Completed", "Approved", "Resolved"].includes(status)) return "green";
+  if (["Offer received", "Open for offers", "Offer accepted", "Applied"].includes(status)) return "gold";
   if (["Cancelled", "Declined", "Rejected", "Open"].includes(status)) return "soil";
   if (["Dispatched", "In lot", "With Mitra", "Preparing documents"].includes(status)) return "blue";
   return "grey";

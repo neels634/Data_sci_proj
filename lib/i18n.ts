@@ -40,10 +40,7 @@ const LABELS: Record<string, string> = {
   Approved: "मंजूर",
   Rejected: "नामंजूर",
   "Needs follow-up": "पाठपुरावा आवश्यक",
-  // enquiries / reports
-  New: "नवीन",
-  Replied: "उत्तर दिले",
-  Closed: "बंद",
+  // reports
   Open: "प्रलंबित",
   Resolved: "सोडवले",
   // crops
@@ -91,7 +88,7 @@ export function label(lang: Lang, value: string): string {
 }
 
 export function fmtDate(lang: Lang, iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString(lang === "mr" ? "mr-IN" : "en-IN", {
+  return new Date(iso + "T00:00:00").toLocaleDateString(lang === "mr" ? "mr-IN-u-nu-deva" : "en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",

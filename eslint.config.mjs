@@ -18,6 +18,10 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // separate Vite / Python projects with their own tooling (also excluded in tsconfig.json)
+      "frontend/**",
+      "crop-check/**",
+      "backend/**",
     ],
   },
 ];

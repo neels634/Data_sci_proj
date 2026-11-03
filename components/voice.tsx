@@ -10,6 +10,7 @@
 import { forwardRef, useEffect, useRef, useState, type ComponentProps } from "react";
 import { Mic, Square } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { toAsciiDigits } from "@/lib/marathi-numbers";
 import { cx } from "./ui";
 
 // Minimal typing for the Web Speech API (not in TypeScript's DOM lib).
@@ -34,11 +35,8 @@ function getRecognition(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-const DEVANAGARI_DIGITS = "०१२३४५६७८९";
-/** "१२.५" → "12.5" so number fields understand spoken Marathi numbers. */
-export function toAsciiDigits(s: string) {
-  return s.replace(/[०-९]/g, (d) => String(DEVANAGARI_DIGITS.indexOf(d)));
-}
+// moved to lib/marathi-numbers.ts; re-exported so existing imports keep working
+export { toAsciiDigits };
 
 /** Only one field listens at a time. */
 let active: Recognition | null = null;

@@ -1,5 +1,5 @@
 /**
- * Seed data for the prototype. People, buyers, prices, listings and enterprises are fictional.
+ * Seed data for the prototype. People, buyers, prices, listings and crops are fictional.
  *
  * Scheme entries name real programmes but are short summaries. They start with
  * `lastVerified: null` so the app shows them as "not yet verified" until an admin
@@ -7,7 +7,8 @@
  */
 import { bi } from "./i18n";
 import { emptyAccount, type Account } from "./account";
-import type { Buyer, Enquiry, Enterprise, FarmerProfile, Guide, Listing, Lot, Offer, Report, Scheme } from "./types";
+import { addDays } from "./lifecycle";
+import type { Buyer, FarmActivity, FarmCrop, FarmerProfile, TaskState, Guide, Listing, Lot, Offer, Report, Scheme } from "./types";
 
 /** Mandi Mitra fee schedule, shown to farmers before they accept an offer. */
 export const MITRA_FEE_PER_QUINTAL = 30;
@@ -387,65 +388,6 @@ export const seedGuides: Guide[] = [
   },
 ];
 
-export const seedEnterprises: Enterprise[] = [
-  {
-    id: "e1",
-    name: bi("Savitri Pickles", "सावित्री लोणची"),
-    group: bi("Savitri Mahila Bachat Gat", "सावित्री महिला बचत गट"),
-    members: 12,
-    village: VILLAGE,
-    products: [
-      { name: bi("Mango pickle", "आंब्याचे लोणचे"), unit: bi("500 g jar", "500 ग्रॅम बरणी"), price: 150 },
-      { name: bi("Lemon pickle", "लिंबाचे लोणचे"), unit: bi("500 g jar", "500 ग्रॅम बरणी"), price: 130 },
-    ],
-    story: bi(
-      "Twelve members pooling a family recipe. Selling at weekly markets; looking for shops in Pune.",
-      "बारा सदस्या घरगुती पाककृती एकत्र करून लोणची बनवतात. आठवडी बाजारात विक्री; पुण्यातील दुकानांच्या शोधात.",
-    ),
-    owner: null,
-    consentToShowcase: true,
-  },
-  {
-    id: "e2",
-    name: bi("Jijau Millet Foods", "जिजाऊ भरडधान्य उत्पादने"),
-    group: bi("Jijau Mahila SHG", "जिजाऊ महिला बचत गट"),
-    members: 10,
-    village: VILLAGE,
-    products: [
-      { name: bi("Nachni flour", "नाचणी पीठ"), unit: bi("1 kg pouch", "1 किलो पिशवी"), price: 90 },
-      { name: bi("Nachni papad", "नाचणी पापड"), unit: bi("200 g pack", "200 ग्रॅम पॅक"), price: 70 },
-    ],
-    story: bi(
-      "Millet flour and papad made from members' own crop. Want regular orders from health stores.",
-      "सदस्यांच्या स्वतःच्या पिकापासून नाचणी पीठ व पापड. आरोग्य दुकानांकडून नियमित ऑर्डर हव्या आहेत.",
-    ),
-    owner: null,
-    consentToShowcase: true,
-  },
-  {
-    id: "e3",
-    name: bi("Ahilya Chikki", "अहिल्या चिक्की"),
-    group: bi("Ahilya Producer Group", "अहिल्या उत्पादक गट"),
-    members: 8,
-    village: bi("Shejari Wadi", "शेजारी वाडी"),
-    products: [{ name: bi("Groundnut chikki", "शेंगदाणा चिक्की"), unit: bi("100 g bar", "100 ग्रॅम वडी"), price: 40 }],
-    story: bi("Started with school canteen orders; now testing highway stalls.", "शाळेच्या कॅन्टीनच्या ऑर्डरपासून सुरुवात; आता महामार्गावरील स्टॉलवर विक्री करून पाहत आहेत."),
-    owner: null,
-    consentToShowcase: true,
-  },
-];
-
-export const seedEnquiries: Enquiry[] = [
-  {
-    id: "q1",
-    enterpriseId: "e1",
-    from: bi("Pune Fresh Mart", "पुणे फ्रेश मार्ट"),
-    message: bi("Can you supply 60 jars of mango pickle per month?", "तुम्ही दरमहा आंब्याच्या लोणच्याच्या 60 बरण्या पुरवू शकाल का?"),
-    status: "New",
-    createdAt: "2026-10-27",
-  },
-];
-
 export const seedReports: Report[] = [
   {
     id: "r1",
@@ -571,3 +513,81 @@ export const seedAccounts: Account[] = [
     consentContact: true,
   },
 ];
+
+/**
+ * Sunita's demo farm. Dates are relative to today so the demo always looks live:
+ * onion transplanted 45 days ago (irrigation due today, weeding overdue, last spray 6 days ago)
+ * and chana planned to be sown in 5 days.
+ */
+export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmActivity[]; taskStates: TaskState[] } {
+  const d = (n: number) => addDays(today, n);
+  const onion = "fc-onion-demo";
+  const crops: FarmCrop[] = [
+    {
+      id: onion,
+      owner: SEED_FARMER_ACCOUNT,
+      cropId: "onion",
+      season: "rabi",
+      seasonIndex: 2,
+      variety: "N-2-4-1",
+      plotName: bi("Field near the well", "विहिरीजवळचे शेत"),
+      areaAcres: 1.5,
+      method: "transplant",
+      status: "growing",
+      plannedSowingDate: null,
+      sowingDate: d(-90), // nursery sown 45 days before transplanting
+      transplantDate: d(-45),
+      durationDays: [150, 170],
+      harvestedOn: null,
+      notes: "",
+      createdAt: d(-90),
+    },
+    {
+      id: "fc-chana-demo",
+      owner: SEED_FARMER_ACCOUNT,
+      cropId: "chana",
+      season: "rabi",
+      seasonIndex: 0,
+      variety: "Vijay",
+      plotName: bi("Back field", "मागचे शेत"),
+      areaAcres: 1,
+      method: "direct",
+      status: "planned",
+      plannedSowingDate: d(5),
+      sowingDate: null,
+      transplantDate: null,
+      durationDays: [95, 115],
+      harvestedOn: null,
+      notes: "",
+      createdAt: d(-2),
+    },
+  ];
+  const act = (id: string, type: FarmActivity["type"], day: number, extra: Partial<FarmActivity> = {}): FarmActivity => ({
+    id,
+    farmCropId: onion,
+    type,
+    date: d(day),
+    notes: "",
+    createdAt: `${d(day)}T10:00:00`,
+    ...extra,
+  });
+  const activities: FarmActivity[] = [
+    act("fa-tp", "transplanting", -45, { notes: "Seedlings from own nursery" }),
+    act("fa-i1", "irrigation", -24, { linkedTaskId: `on-irr2:${d(-24)}` }),
+    act("fa-i2", "irrigation", -16, { linkedTaskId: `on-irr2:${d(-16)}` }),
+    act("fa-f1", "fertiliser", -15, { productName: "Nitrogen top dose (as per soil card)", linkedTaskId: `on-fert:${d(-15)}` }),
+    act("fa-i3", "irrigation", -8, { linkedTaskId: `on-irr2:${d(-8)}` }),
+    act("fa-p1", "pesticide", -6, { productName: "Thrips spray advised by KVK", preHarvestIntervalDays: 10, reEntryHours: 24, notes: "Silvery streaks seen on leaves" }),
+    act("fa-o1", "observation", -2, { linkedTaskId: `on-obs2:${d(-2)}`, notes: "Leaves look healthy after spray" }),
+  ];
+  const done = (key: string, day: number): TaskState => ({ farmCropId: onion, taskKey: key, status: "done", at: d(day) });
+  const taskStates: TaskState[] = [
+    done(`on-irr2:${d(-24)}`, -24),
+    done(`on-irr2:${d(-16)}`, -16),
+    done(`on-fert:${d(-15)}`, -15),
+    done(`on-irr2:${d(-8)}`, -8),
+    done(`on-weed:${d(-20)}`, -20),
+    done(`on-obs2:${d(-2)}`, -2),
+  ];
+  return { crops, activities, taskStates };
+}

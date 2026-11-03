@@ -20,13 +20,13 @@ import {
   ScanEye,
   ShoppingBasket,
   Sprout,
-  Store,
   UserRound,
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 import { cx } from "./ui";
+import { VoiceHelpHost } from "./speech";
 
 export const ROLE_HOME: Record<Role, string> = { farmer: "/home", mitra: "/mitra", buyer: "/buyer", admin: "/admin" };
 
@@ -60,6 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     state.role === "farmer"
       ? [
           { href: "/home", label: l("Home", "मुख्यपृष्ठ"), icon: <Home size={22} />, match: ["/activity"] },
+          { href: "/crops", label: l("My Farm", "माझी शेती"), icon: <Sprout size={22} /> },
           { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={22} /> },
           { href: "/schemes", label: l("Schemes", "योजना"), icon: <Landmark size={22} /> },
           { href: "/sell", label: l("Sell", "विक्री"), icon: <ShoppingBasket size={22} /> },
@@ -76,7 +77,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ? [
               { href: "/buyer", label: l("Home", "मुख्यपृष्ठ"), icon: <ShoppingBasket size={22} /> },
               { href: "/buyer/offers", label: l("My offers", "माझ्या ऑफर"), icon: <FileText size={22} /> },
-              { href: "/women", label: l("SHG products", "गट उत्पादने"), icon: <Store size={22} /> },
             ]
           : [
               { href: "/admin", label: l("Home", "मुख्यपृष्ठ"), icon: <BarChart3 size={22} /> },
@@ -213,6 +213,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
+
+      <VoiceHelpHost />
 
       {toastMsg && (
         <div role="status" className="fixed inset-x-0 bottom-20 z-50 mx-auto w-fit max-w-[90%] rounded-xl bg-ink px-4 py-3 text-sm font-medium text-white shadow-lg">

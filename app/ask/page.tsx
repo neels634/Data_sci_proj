@@ -5,6 +5,7 @@ import { Info, Loader2, Send, Sprout, Square, Volume2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PageHeader, cx, inputCls } from "@/components/ui";
 import { TextArea } from "@/components/voice";
+import { useSpeech } from "@/lib/speech";
 
 type Msg = { role: "user" | "assistant"; text: string; offTopic?: boolean };
 
@@ -15,27 +16,6 @@ const SUGGESTIONS = [
   { en: "How do I make compost at home?", mr: "घरी कंपोस्ट खत कसे बनवायचे?" },
 ];
 
-/** Read an answer aloud in the farmer's language, using the phone's own voice. */
-function useSpeak(lang: "en" | "mr") {
-  const [speaking, setSpeaking] = useState<number | null>(null);
-  const supported = typeof window !== "undefined" && "speechSynthesis" in window;
-  useEffect(() => () => void (supported && window.speechSynthesis.cancel()), [supported]);
-  const speak = (i: number, text: string) => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
-    if (speaking === i) return setSpeaking(null);
-    const u = new SpeechSynthesisUtterance(text.replace(/[*#_`]/g, ""));
-    u.lang = lang === "mr" ? "mr-IN" : "en-IN";
-    const voice = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang === "mr" ? "mr" : "en-in"));
-    if (voice) u.voice = voice;
-    u.rate = 0.95;
-    u.onend = u.onerror = () => setSpeaking(null);
-    setSpeaking(i);
-    window.speechSynthesis.speak(u);
-  };
-  return { supported, speaking, speak };
-}
-
 export default function AskKrishiMitra() {
   const { state, l, toast } = useStore();
   const lang = state.lang === "mr" ? "mr" : "en";
@@ -43,11 +23,18 @@ export default function AskKrishiMitra() {
   const [q, setQ] = useState("");
   const [waiting, setWaiting] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
-  const { supported: canSpeak, speaking, speak } = useSpeak(lang);
+  // shared read-aloud: Marathi answers get numbers, units and dates spoken in Marathi
+  const { supported: canSpeak, speakingId, speak } = useSpeech();
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs, waiting]);
+
+  // ?q= pre-fills the question (e.g. from a crop page); the farmer still taps Send
+  useEffect(() => {
+    const pre = new URLSearchParams(window.location.search).get("q");
+    if (pre) setQ(pre.slice(0, 600));
+  }, []);
 
   const ask = async (text: string) => {
     const question = text.trim();
@@ -129,12 +116,12 @@ export default function AskKrishiMitra() {
                 <p className="whitespace-pre-wrap text-[16px] leading-relaxed">{m.text}</p>
                 {canSpeak && !m.offTopic && (
                   <button
-                    onClick={() => speak(i, m.text)}
+                    onClick={() => speak(`answer:${i}`, m.text)}
                     className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-full bg-leaf-50 px-3 text-sm font-semibold text-leaf-700"
-                    aria-pressed={speaking === i}
+                    aria-pressed={speakingId === `answer:${i}`}
                   >
-                    {speaking === i ? <Square size={14} fill="currentColor" /> : <Volume2 size={16} />}
-                    {speaking === i ? l("Stop", "थांबवा") : l("Listen", "ऐका")}
+                    {speakingId === `answer:${i}` ? <Square size={14} fill="currentColor" /> : <Volume2 size={16} />}
+                    {speakingId === `answer:${i}` ? l("Stop", "थांबवा") : l("Listen", "ऐका")}
                   </button>
                 )}
               </div>
