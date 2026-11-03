@@ -263,3 +263,15 @@ export interface TaskState {
   status: "done" | "skipped";
   at: string;
 }
+
+/** Dated observation of crop stress recorded by the farmer on a specific plot */
+export interface StressObservation {
+  id: string;
+  farmCropId: string;
+  date: string; // YYYY-MM-DD
+  symptomNotes: string;
+  stressCategory?: "pest" | "disease" | "water" | "weather" | "other";
+  /** Compressed client-side data URL stored locally on device; null if no photo */
+  photoDataUrl: string | null;
+  createdAt: string;
+}

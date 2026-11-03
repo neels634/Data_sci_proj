@@ -98,6 +98,22 @@ export function Badge({ tone = "grey", children, className }: { tone?: Tone; chi
   );
 }
 
+/** Reusable badge to visibly mark all simulated, sample, or demo data */
+export function DemoBadge({ className }: { className?: string }) {
+  const { l } = useStore();
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 tracking-wide",
+        className
+      )}
+    >
+      <span className="inline-block size-1.5 rounded-full bg-amber-500" />
+      <span>{l("Demo data", "नमुना माहिती")}</span>
+    </span>
+  );
+}
+
 export function PageHeader({ title, back, sub, action }: { title: string; back?: string; sub?: string; action?: ReactNode }) {
   const { l } = useStore();
   return (

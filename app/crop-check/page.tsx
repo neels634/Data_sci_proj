@@ -3,10 +3,11 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
+  AlertTriangle,
   Camera,
   CheckCircle2,
   HelpCircle,
-  Info,
   Lightbulb,
   Loader2,
   PhoneCall,
@@ -18,7 +19,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { Card, Badge, PageHeader, Button, cx } from "@/components/ui";
+import { Card, Badge, PageHeader, Button, DemoBadge, cx } from "@/components/ui";
 
 const CROP_TRANSLATIONS: Record<string, { en: string; mr: string }> = {
   Tomato: { en: "Tomato", mr: "टोमॅटो" },
@@ -32,7 +33,39 @@ const CROP_TRANSLATIONS: Record<string, { en: string; mr: string }> = {
   Cotton: { en: "Cotton", mr: "कापूस" },
   Onion: { en: "Onion", mr: "कांदा" },
   Sugarcane: { en: "Sugarcane", mr: "ऊस" },
+  Peach: { en: "Peach", mr: "पीच" },
+  Orange: { en: "Orange / Citrus", mr: "संत्री / मोसंबी" },
+  Cherry: { en: "Cherry", mr: "चेरी" },
+  Strawberry: { en: "Strawberry", mr: "स्ट्रॉबेरी" },
+  Squash: { en: "Squash / Pumpkin", mr: "भोपळा" },
+  Blueberry: { en: "Blueberry", mr: "ब्लूबेरी" },
+  Raspberry: { en: "Raspberry", mr: "रास्पबेरी" },
 };
+
+/** The 14 crops supported by the MobileNetV2 38-class plant disease model */
+const SUPPORTED_MODEL_CROPS = [
+  "Apple",
+  "Blueberry",
+  "Cherry",
+  "Corn",
+  "Grape",
+  "Orange",
+  "Peach",
+  "Pepper",
+  "Potato",
+  "Raspberry",
+  "Soybean",
+  "Squash",
+  "Strawberry",
+  "Tomato",
+];
+
+function isCropSupported(plant: string): boolean {
+  const p = plant.toLowerCase();
+  return SUPPORTED_MODEL_CROPS.some(
+    (c) => p.includes(c.toLowerCase()) || (c === "Corn" && p.includes("maize"))
+  );
+}
 
 function translatePlant(plant: string, lang: "en" | "mr"): string {
   const match = Object.entries(CROP_TRANSLATIONS).find(
@@ -80,27 +113,32 @@ interface DiagnosisResult {
   severity: "low" | "medium" | "high";
   confidence: number;
   explanation: { en: string; mr: string };
-  cultural: { en: string; mr: string };
-  chemical: { en: string; mr: string };
-  preventive: { en: string; mr: string };
+  cultural: { en: string; mr: string } | null;
+  chemical: { en: string; mr: string } | null;
+  preventive: { en: string; mr: string } | null;
+  verifiedSource?: string;
+  isUncertain?: boolean;
+  unsupportedCrop?: boolean;
 }
 
 export default function CropCheckPage() {
   const { state, l, toast } = useStore();
   const lang = state.lang === "mr" ? "mr" : "en";
 
-  // 5 slots: 0=Leaf Front, 1=Leaf Back, 2=Plant Front, 3=Plant Side, 4=Extra (optional)
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null]);
+  // Slot 0: Primary Leaf Close-up (Sent to model)
+  // Slot 1: Optional Whole Plant / Context (Saved for records)
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null]);
   const [showHelpGuide, setShowHelpGuide] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
+  const [apiError, setApiError] = useState<{ title: string; detail: string } | null>(null);
   const [speaking, setSpeaking] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const requiredCount = 4;
-  const requiredDone = photos.slice(0, 4).filter(Boolean).length;
-  const canSubmit = requiredDone >= requiredCount && !analyzing;
+  // The model takes 1 leaf image, so exactly 1 photo is required to submit
+  const hasPrimaryPhoto = Boolean(photos[0]);
+  const canSubmit = hasPrimaryPhoto && !analyzing;
 
   // Cleanup speech synthesis on unmount
   useEffect(() => {
@@ -121,32 +159,27 @@ export default function CropCheckPage() {
         return next;
       });
       setResult(null);
+      setApiError(null);
     } catch {
       toast(l("Failed to process photo. Please try again.", "फोटो लोड करता आला नाही. कृपया पुन्हा प्रयत्न करा."));
     }
   }, [l, toast]);
 
   const loadDemoSet = async (cropType: "tomato" | "maize") => {
+    setApiError(null);
+    setResult(null);
     if (cropType === "tomato") {
       setPhotos([
         "/demo-images/tomato-leaf-disease.jpg",
-        "/demo-images/tomato-leaf-disease.jpg",
         "/demo-images/farm-overview-1.jpg",
-        "/demo-images/farm-overview-2.jpg",
-        null,
       ]);
-      setResult(null);
-      toast(l("Loaded 4 Tomato sample photos! Tap 'Check my crop' below.", "टोमॅटोचे ४ नमुना फोटो लोड झाले! 'माझे पीक तपासा' वर टॅप करा."));
+      toast(l("Loaded sample Tomato photos! Tap 'Check My Crop' to run AI analysis.", "टोमॅटोचे नमुना फोटो लोड झाले! 'माझे पीक तपासा' वर टॅप करा."));
     } else {
       setPhotos([
         "/demo-images/maize-leaf-disease.jpg",
-        "/demo-images/maize-leaf-disease.jpg",
-        "/demo-images/farm-overview-1.jpg",
         "/demo-images/farm-overview-2.jpg",
-        null,
       ]);
-      setResult(null);
-      toast(l("Loaded 4 Maize sample photos! Tap 'Check my crop' below.", "मक्याचे ४ नमुना फोटो लोड झाले! 'माझे पीक तपासा' वर टॅप करा."));
+      toast(l("Loaded sample Maize photos! Tap 'Check My Crop' to run AI analysis.", "मक्याचे नमुना फोटो लोड झाले! 'माझे पीक तपासा' वर टॅप करा."));
     }
   };
 
@@ -158,8 +191,8 @@ export default function CropCheckPage() {
     window.speechSynthesis.cancel();
     const text =
       lang === "mr"
-        ? "फोटो काढण्यासाठी ४ सोप्या पायऱ्या: १. दिवसाच्या सूर्यप्रकाशात फोटो काढा. २. रोगट पान मध्यभागी ठेवून १० ते १५ सेंटीमीटर अंतरावरून स्पष्ट फोटो घ्या. ३. पानाची मागची बाजूही उलटी करून फोटो घ्या, कारण कीड पानांच्या मागे लपलेली असते. ४. थोडे मागे सरकून संपूर्ण झाडाचा समोरून आणि बाजूने फोटो घ्या."
-        : "How to take 4 clear photos for crop check: Step 1. Take photos in natural daylight. Avoid deep shadows. Step 2. Keep the affected leaf in the center, 10 to 15 centimeters away. Step 3. Flip the leaf and take a photo of the underside where pests hide. Step 4. Step back and take full plant photos from the front and side.";
+        ? "फोटो काढण्यासाठी सोप्या पायऱ्या: १. दिवसाच्या सूर्यप्रकाशात फोटो काढा. २. रोगट पान मध्यभागी ठेवून १० ते १५ सेंटीमीटर अंतरावरून स्पष्ट जवळचा फोटो घ्या. पानावरील डाग स्पष्ट दिसले पाहिजेत."
+        : "How to take a photo for crop check: Step 1. Take a clear close-up photo in natural daylight. Step 2. Keep the affected leaf in the center, about 10 to 15 centimeters away, ensuring the disease spots are in sharp focus.";
 
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang === "mr" ? "mr-IN" : "en-IN";
@@ -183,6 +216,19 @@ export default function CropCheckPage() {
 
     window.speechSynthesis.cancel();
     const plantName = translatePlant(result.plant, lang);
+
+    if (result.isUncertain || result.unsupportedCrop) {
+      const msg = lang === "mr" ? result.explanation.mr : result.explanation.en;
+      const u = new SpeechSynthesisUtterance(msg);
+      u.lang = lang === "mr" ? "mr-IN" : "en-IN";
+      u.rate = 0.92;
+      u.onend = () => setSpeaking(false);
+      u.onerror = () => setSpeaking(false);
+      setSpeaking(true);
+      window.speechSynthesis.speak(u);
+      return;
+    }
+
     const speechText =
       lang === "mr"
         ? `पीक: ${plantName}. रोग: ${result.disease}. तीव्रता: ${
@@ -191,10 +237,12 @@ export default function CropCheckPage() {
               : result.severity === "medium"
               ? "मध्यम"
               : "कमी"
-          }. ${result.explanation.mr}. उपाय: ${result.cultural.mr}. ${
-            result.chemical.mr
-          }. ${result.preventive.mr}`
-        : `Crop: ${plantName}. Diagnosis: ${result.disease}. Severity: ${result.severity}. ${result.explanation.en}. Recommended actions: First, ${result.cultural.en}. Second, ${result.chemical.en}. Third, ${result.preventive.en}`;
+          }. ${result.explanation.mr}. ${
+            result.cultural ? `उपाय: ${result.cultural.mr}.` : ""
+          } ${result.chemical ? `${result.chemical.mr}.` : ""}`
+        : `Crop: ${plantName}. Diagnosis: ${result.disease}. Severity: ${result.severity}. ${result.explanation.en}. ${
+            result.cultural ? `Actions: ${result.cultural.en}.` : ""
+          } ${result.chemical ? `${result.chemical.en}.` : ""}`;
 
     const utterance = new SpeechSynthesisUtterance(speechText);
     utterance.lang = lang === "mr" ? "mr-IN" : "en-IN";
@@ -207,20 +255,22 @@ export default function CropCheckPage() {
   };
 
   const runDiagnosis = async () => {
-    if (!canSubmit) {
+    if (!hasPrimaryPhoto) {
       toast(
         l(
-          `Please add all 4 required photos (${4 - requiredDone} remaining).`,
-          `कृपया सर्व ४ फोटो पूर्ण करा (अजून ${4 - requiredDone} बाकी).`
+          "Please add a close-up photo of the affected leaf.",
+          "कृपया बाधित पानाचा स्पष्ट जवळून फोटो जोडा."
         )
       );
       return;
     }
 
     setAnalyzing(true);
+    setApiError(null);
+    setResult(null);
+
     try {
-      // Primary close-up leaf image is slot 0 (or slot 1)
-      const primaryPhoto = photos[0] || photos[1];
+      const primaryPhoto = photos[0];
       if (!primaryPhoto) throw new Error("No leaf image provided");
 
       let imageBlob: Blob;
@@ -255,7 +305,52 @@ export default function CropCheckPage() {
       const data = await res.json();
       const top = data.top_prediction || (data.predictions && data.predictions[0]);
 
-      if (!top) throw new Error("No prediction returned from model");
+      if (!top) {
+        throw new Error("No prediction returned from model");
+      }
+
+      const rawPlant = top.plant || "Crop";
+      const confidence = top.confidence ?? 0;
+
+      // ── 1. Unsupported Crop check ───────────────────────────────────────────
+      if (!isCropSupported(rawPlant)) {
+        setResult({
+          plant: rawPlant,
+          disease: l("Unsupported Crop Type", "असमर्थित पीक प्रकार"),
+          severity: "low",
+          confidence,
+          unsupportedCrop: true,
+          explanation: {
+            en: `The AI model detected this as ${rawPlant}. This local model is only trained for 14 specific crops (${SUPPORTED_MODEL_CROPS.slice(0, 7).join(", ")}, etc.). For crops like onion, sugarcane, or cotton, please consult a local agriculture officer.`,
+            mr: `AI मॉडेलने हे पीक ${translatePlant(rawPlant, "mr")} म्हणून ओळखले. हे स्थानिक मॉडेल फक्त १४ ठराविक पिकांसाठी प्रशिक्षित आहे. इतर पिकांसाठी (कांदा, कापूस, ऊस इ.) कृपया स्थानिक कृषी अधिकाऱ्यांशी संपर्क साधा.`,
+          },
+          cultural: null,
+          chemical: null,
+          preventive: null,
+        });
+        toast(l("Unsupported crop detected.", "या पिकासाठी AI मॉडेल उपलब्ध नाही."));
+        return;
+      }
+
+      // ── 2. Low Confidence / Uncertainty Check ────────────────────────────────
+      if (confidence < 0.60 || data.uncertainty_detected) {
+        setResult({
+          plant: rawPlant,
+          disease: l("Cannot Identify with Confidence", "खात्रीशीर निदान करता आले नाही"),
+          severity: "low",
+          confidence,
+          isUncertain: true,
+          explanation: {
+            en: `The AI model confidence is ${Math.round(confidence * 100)}% (below the 60% reliable threshold). The image may have glare, poor focus, or atypical symptoms. Please retake a sharp, well-lit close-up in natural daylight or consult a local Krishi Kendra.`,
+            mr: `AI मॉडेलची अचूकता ${Math.round(confidence * 100)}% आहे (६०% खात्रीशीर मर्यादेपेक्षा कमी). फोटोमध्ये सावली किंवा अस्पष्टता असू शकते. कृपया स्वच्छ उजेडात पुन्हा फोटो काढा किंवा स्थानिक कृषी केंद्राचा सल्ला घ्या.`,
+          },
+          cultural: null,
+          chemical: null,
+          preventive: null,
+        });
+        toast(l("Low confidence. Retake photo or ask an expert.", "खात्रीशीर निदान झाले नाही. कृपया पुन्हा फोटो काढा."));
+        return;
+      }
 
       const isHealthy =
         top.disease.toLowerCase() === "none" ||
@@ -264,25 +359,18 @@ export default function CropCheckPage() {
         ? l("Healthy Foliage (No Disease Detected)", "निरोगी झाड (कोणताही रोग नाही)")
         : top.disease.replace(/_/g, " ");
 
-      const culturalEn =
-        top.treatment?.cultural || "Ensure good drainage and prune heavily infected lower leaves.";
-      const chemicalEn =
-        top.treatment?.chemical ||
-        "Apply recommended copper oxychloride or bio-fungicide spray in early morning.";
-      const preventiveEn =
-        top.treatment?.preventive ||
-        "Maintain crop spacing, avoid overhead irrigation, and rotate crops annually.";
+      // ── 3. Verified Treatment Text only ────────────────────────────────────
+      const hasVerifiedTreatment = Boolean(top.treatment?.cultural || top.treatment?.chemical);
+      const culturalEn = top.treatment?.cultural || null;
+      const chemicalEn = top.treatment?.chemical || null;
+      const preventiveEn = top.treatment?.preventive || null;
 
-      const culturalMr =
-        "बाधित किंवा गळलेली पाने गोळा करून नष्ट करा व शेतात पाण्याचा निचरा योग्य ठेवा.";
-      const chemicalMr =
-        top.treatment?.chemical ||
-        "तज्ञांच्या सल्ल्याने योग्य बुरशीनाशक (उदा. मँकोझेब किंवा कॉपर) सकाळी फवारा.";
-      const preventiveMr =
-        "पिकांमध्ये हवा खेळती ठेवा, थेट पानांवर पाणी न देता मुळाशी पाणी द्या आणि फेरपालट करा.";
+      const culturalMr = top.treatment?.cultural_mr || top.treatment?.cultural || null;
+      const chemicalMr = top.treatment?.chemical_mr || top.treatment?.chemical || null;
+      const preventiveMr = top.treatment?.preventive_mr || top.treatment?.preventive || null;
 
       setResult({
-        plant: top.plant || "Crop",
+        plant: rawPlant,
         disease: cleanDisease,
         severity:
           top.severity === "high"
@@ -290,50 +378,33 @@ export default function CropCheckPage() {
             : top.severity === "medium"
             ? "medium"
             : "low",
-        confidence: top.confidence || 0.89,
+        confidence,
         explanation: {
           en:
             top.causes ||
-            `Diagnosed ${cleanDisease} with ${(
-              (top.confidence || 0.89) * 100
-            ).toFixed(1)}% AI confidence using 4 field inspection angles.`,
+            `Diagnosed ${cleanDisease} with ${(confidence * 100).toFixed(1)}% AI confidence based on leaf inspection.`,
           mr:
-            `४ कोनांतून तपासणी करून AI द्वारे ${(
-              (top.confidence || 0.89) * 100
-            ).toFixed(1)}% अचूकतेने '${cleanDisease}' चे निदान झाले आहे.`,
+            `पानाच्या तपासणीवरून AI द्वारे ${(confidence * 100).toFixed(1)}% अचूकतेने '${cleanDisease}' चे निदान झाले आहे.`,
         },
-        cultural: { en: culturalEn, mr: culturalMr },
-        chemical: { en: chemicalEn, mr: chemicalMr },
-        preventive: { en: preventiveEn, mr: preventiveMr },
+        cultural: culturalEn ? { en: culturalEn, mr: culturalMr || culturalEn } : null,
+        chemical: chemicalEn ? { en: chemicalEn, mr: chemicalMr || chemicalEn } : null,
+        preventive: preventiveEn ? { en: preventiveEn, mr: preventiveMr || preventiveEn } : null,
+        verifiedSource: hasVerifiedTreatment ? "Verified project disease guide (disease_config.json)" : undefined,
       });
 
-      toast(l("AI 4-photo diagnosis completed!", "४ फोटोंची AI तपासणी यशस्वीरित्या पूर्ण झाली!"));
+      toast(l("AI leaf diagnosis completed!", "पानाची AI तपासणी यशस्वीरित्या पूर्ण झाली!"));
     } catch (err: unknown) {
       console.warn("Backend API unavailable or error:", err);
-      // Fallback response with expert advice
-      setResult({
-        plant: "Tomato",
-        disease: l("Early Blight (Alternaria solani)", "टोमॅटो करपा (अल्टरनेरिया)"),
-        severity: "medium",
-        confidence: 0.87,
-        explanation: {
-          en: "Dark concentric spots with yellow halo identified across leaf closeups and canopy views.",
-          mr: "पानावरील गोलाकार तपकिरी-काळे डाग व पिवळसर कडा हे करपा बुरशीचे ठळक लक्षण आहे.",
-        },
-        cultural: {
-          en: "Remove and burn heavily infected leaves. Water at root zone, not on leaves.",
-          mr: "खालची बाधित पाने काढून नष्ट करा. थेट मुळाशी पाणी द्या, पानांवर पाणी साचू देऊ नका.",
-        },
-        chemical: {
-          en: "Spray Mancozeb (2.5 g/L) or Copper Oxychloride (3 g/L) in early morning.",
-          mr: "मँकोझेब (२.५ ग्रॅम/लिटर) किंवा कॉपर ऑक्सिक्लोराईड (३ ग्रॅम/लिटर) सकाळी फवारा.",
-        },
-        preventive: {
-          en: "Mulch around base to prevent soil splash and practice crop rotation.",
-          mr: "मातीचे शिंतोडे उडू नयेत म्हणून आच्छादन (मल्चिंग) करा आणि पीक फेरपालट करा.",
-        },
+      // Honest error reporting — NEVER fabricate a diagnosis
+      const msg = err instanceof Error ? err.message : String(err);
+      setApiError({
+        title: l("AI Diagnosis Service Unavailable", "AI निदान सेवा उपलब्ध नाही"),
+        detail: l(
+          `Could not connect to the local disease detection model (${msg}). Please verify the local backend server is running on port 8000, or consult your local agriculture officer directly.`,
+          `स्थानिक पीक निदान मॉडेलशी संपर्क होऊ शकला नाही (${msg}). स्थानिक बॅकएंड सर्व्हर (port 8000) सुरू असल्याची खात्री करा किंवा स्थानिक कृषी अधिकाऱ्यांशी थेट संपर्क साधा.`
+        ),
       });
-      toast(l("Diagnosis loaded with expert agronomic guidelines.", "तज्ञांच्या मार्गदर्शनानुसार निदान लोड झाले."));
+      setResult(null);
     } finally {
       setAnalyzing(false);
     }
@@ -345,12 +416,12 @@ export default function CropCheckPage() {
         back="/home"
         title={l("Crop Disease Check", "पीक रोग तपासणी")}
         sub={l(
-          "Take 4 photos of the problem leaf and whole plant for accurate AI diagnosis.",
-          "अचूक AI निदानासाठी समस्येचे पान व संपूर्ण झाडाचे ४ फोटो काढा."
+          "Take 1 clear close-up leaf photo for AI diagnosis. Optional second photo for your records.",
+          "AI निदानासाठी बाधित पानाचा १ स्पष्ट फोटो काढा. नोंदीसाठी दुसरा ऐच्छिक फोटो जोडू शकता."
         )}
       />
 
-      {/* Guide Banner / Help Trigger */}
+      {/* Guide Banner */}
       <div className="flex items-center justify-between rounded-2xl border border-leaf-700/30 bg-leaf-50 p-3.5 shadow-sm">
         <div className="flex items-center gap-2.5">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-leaf-700 text-white shadow-sm">
@@ -358,10 +429,10 @@ export default function CropCheckPage() {
           </span>
           <div>
             <p className="text-sm font-bold text-leaf-950">
-              {l("Need help taking photos?", "फोटो कसा काढायचा? मदत हवी आहे?")}
+              {l("Photo Guidelines", "फोटो काढण्याचे मार्गदर्शन")}
             </p>
             <p className="text-xs text-leaf-800">
-              {l("Tap for guidelines on lighting, angle & focus", "चांगल्या निदानासाठी फोटो काढण्याचे नियम पाहा")}
+              {l("Best results with natural daylight & sharp focus", "सूर्यप्रकाशात व स्पष्ट फोकसने सर्वोत्तम परिणाम मिळतात")}
             </p>
           </div>
         </div>
@@ -377,30 +448,18 @@ export default function CropCheckPage() {
 
       {/* Photo Capture Section */}
       <Card className="p-4 sm:p-5">
-        {/* Progress Bar & Instructions */}
-        <div className="flex items-center justify-between border-b border-line pb-3">
-          <div>
-            <h2 className="text-lg font-bold text-ink">
-              {l("Take 4 Photos", "४ फोटो काढा")}
-            </h2>
-            <p className="text-xs text-muted">
-              {l(
-                "Tap each box to open camera or upload.",
-                "कॅमेरा उघडण्यासाठी किंवा फोटो निवडण्यासाठी बॉक्सवर टॅप करा."
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-right">
-              <span className="text-xs font-bold text-leaf-800">
-                {l(`${requiredDone} of ${requiredCount} done`, `४ पैकी ${requiredDone} फोटो झाले`)}
-              </span>
-              <div className="mt-1 h-2 w-20 overflow-hidden rounded-full bg-cream">
-                <div
-                  className="h-full bg-leaf-700 transition-all duration-300"
-                  style={{ width: `${(requiredDone / requiredCount) * 100}%` }}
-                />
-              </div>
+        <div className="border-b border-line pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-ink">
+                {l("Crop Photos", "पिकाचे फोटो")}
+              </h2>
+              <p className="text-xs text-muted">
+                {l(
+                  "The AI model inspects 1 close-up leaf photo.",
+                  "AI मॉडेल १ जवळच्या पानाचे विश्लेषण करते."
+                )}
+              </p>
             </div>
             <button
               type="button"
@@ -413,11 +472,14 @@ export default function CropCheckPage() {
           </div>
         </div>
 
-        {/* 1-Tap Quick Demo Fill */}
+        {/* 1-Tap Quick Sample Fill with visible DemoBadge */}
         <div className="mt-3 rounded-xl bg-sand/60 p-2.5">
-          <p className="text-xs font-bold text-muted mb-1.5">
-            {l("⚡ Quick Test (Fill 4 Demo Photos):", "⚡ जलद चाचणी (४ नमुना फोटो भरा):")}
-          </p>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-muted">
+              {l("Test with sample photos:", "नमुना फोटोंसह तपासा:")}
+            </span>
+            <DemoBadge />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -425,7 +487,7 @@ export default function CropCheckPage() {
               className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-white py-1.5 px-2 text-xs font-semibold text-leaf-900 shadow-sm hover:bg-leaf-50 transition"
             >
               <span>🍅</span>
-              <span>{l("Tomato Blight (4 Photos)", "टोमॅटो करपा (४ फोटो)")}</span>
+              <span>{l("Tomato Leaf Sample", "टोमॅटो पान नमुना")}</span>
             </button>
             <button
               type="button"
@@ -433,190 +495,123 @@ export default function CropCheckPage() {
               className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-white py-1.5 px-2 text-xs font-semibold text-leaf-900 shadow-sm hover:bg-leaf-50 transition"
             >
               <span>🌽</span>
-              <span>{l("Maize Leaf (4 Photos)", "मका पान (४ फोटो)")}</span>
+              <span>{l("Maize Leaf Sample", "मका पान नमुना")}</span>
             </button>
           </div>
         </div>
 
-        {/* Group 1: Close-up of Problem (Slots 0 & 1) */}
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-bold text-ink flex items-center gap-1.5">
-              <span>📷</span>
-              <span>{l("1. Close-up of the Problem (Leaf/Fruit)", "१. समस्येचा जवळचा फोटो (पान/फळ)")}</span>
-            </span>
-            <span className="text-[11px] font-semibold text-soil">{l("Required", "आवश्यक")}</span>
-          </div>
+        {/* 2 Honest Slots: 1 Required (Leaf Close-up), 1 Optional (Context) */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Slot 0: Primary Leaf Close-up (Required) */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-ink flex items-center gap-1">
+                <span>📷</span>
+                <span>{l("1. Leaf Close-up", "१. पानाचा जवळून फोटो")}</span>
+              </span>
+              <span className="text-[11px] font-bold text-soil">{l("Required for AI", "AI साठी आवश्यक")}</span>
+            </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { id: 0, label: l("Front of leaf / fruit", "पान / फळ समोरून"), hint: l("Center the disease spot", "रोगाचा डाग मध्यभागी") },
-              { id: 1, label: l("Underside or closer", "पानाची मागची बाजू / अधिक जवळून"), hint: l("Flip leaf to see pests", "कीड पाहण्यासाठी उलटे करा") },
-            ].map((slot) => {
-              const photo = photos[slot.id];
-              return (
-                <div
-                  key={slot.id}
-                  onClick={() => inputRefs.current[slot.id]?.click()}
-                  className={cx(
-                    "relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition overflow-hidden active:scale-[0.98]",
-                    photo
-                      ? "border-leaf-700 bg-white shadow-sm"
-                      : "border-dashed border-leaf-700/40 bg-leaf-50/40 hover:border-leaf-700 hover:bg-leaf-50"
-                  )}
-                >
-                  {photo ? (
-                    <>
-                      <img src={photo} alt={slot.label} className="absolute inset-0 size-full object-cover" />
-                      <span className="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-white text-leaf-700 shadow">
-                        <CheckCircle2 size={16} />
-                      </span>
-                      <span className="absolute inset-x-0 bottom-0 bg-black/65 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
-                        {l("Tap to retake", "पुन्हा बदलण्यासाठी टॅप करा")}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="grid size-12 place-items-center rounded-full bg-leaf-100 text-leaf-700 mb-1.5 shadow-xs">
-                        <Camera size={24} />
-                      </span>
-                      <span className="text-xs font-bold text-ink leading-tight">{slot.label}</span>
-                      <span className="text-[10px] text-muted mt-0.5">{slot.hint}</span>
-                    </>
-                  )}
-                  <input
-                    ref={(el) => { inputRefs.current[slot.id] = el; }}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => {
-                      handlePhotoUpload(slot.id, e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Group 2: Whole Plant (Slots 2 & 3) */}
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-bold text-ink flex items-center gap-1.5">
-              <span>🌱</span>
-              <span>{l("2. Whole Plant View (Canopy)", "२. संपूर्ण झाडाचा फोटो")}</span>
-            </span>
-            <span className="text-[11px] font-semibold text-soil">{l("Required", "आवश्यक")}</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { id: 2, label: l("Plant from front", "झाड समोरून"), hint: l("Step back 1-2 meters", "१-२ मीटर मागे सरका") },
-              { id: 3, label: l("Plant from side", "झाड बाजूने"), hint: l("Show branches & stem", "फांद्या व खोड दाखवा") },
-            ].map((slot) => {
-              const photo = photos[slot.id];
-              return (
-                <div
-                  key={slot.id}
-                  onClick={() => inputRefs.current[slot.id]?.click()}
-                  className={cx(
-                    "relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition overflow-hidden active:scale-[0.98]",
-                    photo
-                      ? "border-leaf-700 bg-white shadow-sm"
-                      : "border-dashed border-leaf-700/40 bg-leaf-50/40 hover:border-leaf-700 hover:bg-leaf-50"
-                  )}
-                >
-                  {photo ? (
-                    <>
-                      <img src={photo} alt={slot.label} className="absolute inset-0 size-full object-cover" />
-                      <span className="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-white text-leaf-700 shadow">
-                        <CheckCircle2 size={16} />
-                      </span>
-                      <span className="absolute inset-x-0 bottom-0 bg-black/65 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
-                        {l("Tap to retake", "पुन्हा बदलण्यासाठी टॅप करा")}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="grid size-12 place-items-center rounded-full bg-leaf-100 text-leaf-700 mb-1.5 shadow-xs">
-                        <Camera size={24} />
-                      </span>
-                      <span className="text-xs font-bold text-ink leading-tight">{slot.label}</span>
-                      <span className="text-[10px] text-muted mt-0.5">{slot.hint}</span>
-                    </>
-                  )}
-                  <input
-                    ref={(el) => { inputRefs.current[slot.id] = el; }}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => {
-                      handlePhotoUpload(slot.id, e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Group 3: Optional Extra Slot 4 */}
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-bold text-muted flex items-center gap-1">
-              <span>📎</span>
-              <span>{l("3. Extra Angle or Soil (Optional)", "३. माती किंवा खोडाचा फोटो (ऐच्छिक)")}</span>
-            </span>
-            <span className="text-[10px] text-muted">{l("Optional", "ऐच्छिक")}</span>
-          </div>
-
-          <div
-            onClick={() => inputRefs.current[4]?.click()}
-            className={cx(
-              "relative flex h-20 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed p-2 text-center transition overflow-hidden",
-              photos[4]
-                ? "border-leaf-700 bg-white"
-                : "border-line bg-cream/60 hover:bg-cream"
-            )}
-          >
-            {photos[4] ? (
-              <>
-                <img src={photos[4]!} alt="Extra photo" className="absolute inset-0 size-full object-cover" />
-                <span className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-white text-leaf-700 shadow">
-                  <CheckCircle2 size={14} />
-                </span>
-                <span className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 text-[10px] font-semibold text-white">
-                  {l("Tap to change extra photo", "बदलण्यासाठी टॅप करा")}
-                </span>
-              </>
-            ) : (
-              <>
-                <Camera size={22} className="text-muted" />
-                <div className="text-left">
-                  <span className="block text-xs font-semibold text-ink leading-tight">
-                    {l("Add root, stem or soil photo", "मुळांचा, खोडाचा किंवा मातीचा फोटो जोडा")}
+            <div
+              onClick={() => inputRefs.current[0]?.click()}
+              className={cx(
+                "relative flex aspect-video sm:aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition overflow-hidden active:scale-[0.98]",
+                photos[0]
+                  ? "border-leaf-700 bg-white shadow-sm"
+                  : "border-dashed border-leaf-700/40 bg-leaf-50/40 hover:border-leaf-700 hover:bg-leaf-50"
+              )}
+            >
+              {photos[0] ? (
+                <>
+                  <img src={photos[0]!} alt="Leaf closeup" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-white text-leaf-700 shadow">
+                    <CheckCircle2 size={16} />
                   </span>
-                  <span className="text-[10px] text-muted">
-                    {l("Helps identify root rot and nutrient deficiency", "मुळकुज किंवा खत कमतरता ओळखण्यास मदत होते")}
+                  <span className="absolute inset-x-0 bottom-0 bg-black/65 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
+                    {l("Tap to change photo", "फोटो बदलण्यासाठी टॅप करा")}
                   </span>
-                </div>
-              </>
-            )}
-            <input
-              ref={(el) => { inputRefs.current[4] = el; }}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                handlePhotoUpload(4, e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
+                </>
+              ) : (
+                <>
+                  <span className="grid size-12 place-items-center rounded-full bg-leaf-100 text-leaf-700 mb-1.5 shadow-xs">
+                    <Camera size={24} />
+                  </span>
+                  <span className="text-xs font-bold text-ink leading-tight">
+                    {l("Tap to take leaf photo", "पानाचा फोटो काढण्यासाठी टॅप करा")}
+                  </span>
+                  <span className="text-[10px] text-muted mt-0.5">
+                    {l("Center the symptom 10-15 cm away", "रोगट भाग १०-१५ सेमी अंतरावर ठेवा")}
+                  </span>
+                </>
+              )}
+              <input
+                ref={(el) => { inputRefs.current[0] = el; }}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  handlePhotoUpload(0, e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Slot 1: Whole Plant / Context (Optional) */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted flex items-center gap-1">
+                <span>🌱</span>
+                <span>{l("2. Whole Plant View", "२. संपूर्ण झाडाचा फोटो")}</span>
+              </span>
+              <span className="text-[11px] font-semibold text-muted">{l("Optional (Records)", "पर्यायी (नोंदीसाठी)")}</span>
+            </div>
+
+            <div
+              onClick={() => inputRefs.current[1]?.click()}
+              className={cx(
+                "relative flex aspect-video sm:aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition overflow-hidden active:scale-[0.98]",
+                photos[1]
+                  ? "border-leaf-700 bg-white shadow-sm"
+                  : "border-dashed border-line bg-cream/50 hover:bg-cream"
+              )}
+            >
+              {photos[1] ? (
+                <>
+                  <img src={photos[1]!} alt="Whole plant" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-white text-leaf-700 shadow">
+                    <CheckCircle2 size={16} />
+                  </span>
+                  <span className="absolute inset-x-0 bottom-0 bg-black/65 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
+                    {l("Tap to change photo", "फोटो बदलण्यासाठी टॅप करा")}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="grid size-12 place-items-center rounded-full bg-sand text-muted mb-1.5 shadow-xs">
+                    <Camera size={24} />
+                  </span>
+                  <span className="text-xs font-bold text-ink leading-tight">
+                    {l("Add whole plant (optional)", "संपूर्ण झाडाचा फोटो (पर्यायी)")}
+                  </span>
+                  <span className="text-[10px] text-muted mt-0.5">
+                    {l("Context for your record keeping", "तुमच्या वैयक्तिक नोंदीसाठी")}
+                  </span>
+                </>
+              )}
+              <input
+                ref={(el) => { inputRefs.current[1] = el; }}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  handlePhotoUpload(1, e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -633,23 +628,50 @@ export default function CropCheckPage() {
           {analyzing ? (
             <>
               <Loader2 size={20} className="animate-spin" />
-              <span>{l("Analyzing 4 Photos with AI Model...", "AI मॉडेलद्वारे ४ फोटो तपासत आहे...")}</span>
+              <span>{l("Analyzing Leaf with AI Model...", "AI मॉडेलद्वारे पान तपासत आहे...")}</span>
             </>
           ) : canSubmit ? (
             <>
               <Sparkles size={20} />
-              <span>{l("Check My Crop (All 4 Photos Ready)", "माझे पीक तपासा (सर्व ४ फोटो तयार)")}</span>
+              <span>{l("Check My Crop (Analyze Leaf)", "माझे पीक तपासा (पान तपासा)")}</span>
             </>
           ) : (
-            <span>
-              {l(
-                `Add ${4 - requiredDone} more photo${4 - requiredDone > 1 ? "s" : ""} to check crop`,
-                `तपासण्यासाठी अजून ${4 - requiredDone} फोटो काढा`
-              )}
-            </span>
+            <span>{l("Add 1 leaf photo to check crop", "तपासण्यासाठी पानाचा १ फोटो जोडा")}</span>
           )}
         </Button>
       </Card>
+
+      {/* Honest Error State Card (When Backend API fails) */}
+      {apiError && (
+        <Card className="border-soil/50 bg-soil-100/30 p-5">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-soil text-white">
+              <AlertCircle size={22} />
+            </span>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-soil">{apiError.title}</h3>
+              <p className="mt-1 text-sm text-ink/90 leading-relaxed">{apiError.detail}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={runDiagnosis}
+                  className="min-h-10 text-xs"
+                >
+                  <RefreshCw size={14} />
+                  <span>{l("Retry Connection", "पुन्हा प्रयत्न करा")}</span>
+                </Button>
+                <Link
+                  href="/ask"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-leaf-700 px-3 text-xs font-bold text-white hover:bg-leaf-800 transition"
+                >
+                  <PhoneCall size={14} />
+                  <span>{l("Consult Krishi Mitra", "कृषी मित्राशी चर्चा करा")}</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Diagnosis Results Section */}
       {result && (
@@ -659,21 +681,29 @@ export default function CropCheckPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="green">{translatePlant(result.plant, lang)}</Badge>
-                  <Badge
-                    tone={
-                      result.severity === "high"
-                        ? "soil"
+
+                  {result.isUncertain ? (
+                    <Badge tone="gold">{l("Low Confidence", "कमी अचूकता")}</Badge>
+                  ) : result.unsupportedCrop ? (
+                    <Badge tone="soil">{l("Unsupported", "असमर्थित")}</Badge>
+                  ) : (
+                    <Badge
+                      tone={
+                        result.severity === "high"
+                          ? "soil"
+                          : result.severity === "medium"
+                          ? "gold"
+                          : "green"
+                      }
+                    >
+                      {result.severity === "high"
+                        ? l("High Severity", "गंभीर तीव्रता")
                         : result.severity === "medium"
-                        ? "gold"
-                        : "green"
-                    }
-                  >
-                    {result.severity === "high"
-                      ? l("High Severity", "गंभीर तीव्रता")
-                      : result.severity === "medium"
-                      ? l("Moderate Severity", "मध्यम तीव्रता")
-                      : l("Low / Healthy", "कमी / निरोगी")}
-                  </Badge>
+                        ? l("Moderate Severity", "मध्यम तीव्रता")
+                        : l("Low / Healthy", "कमी / निरोगी")}
+                    </Badge>
+                  )}
+
                   <span className="text-xs font-semibold text-muted">
                     {Math.round(result.confidence * 100)}% {l("confidence", "अचूकता")}
                   </span>
@@ -695,7 +725,7 @@ export default function CropCheckPage() {
                     : "bg-leaf-100 text-leaf-700 hover:bg-leaf-200"
                 )}
                 aria-label={l("Read out diagnosis", "निदान ऐका")}
-                title={l("Listen to diagnosis and advice", "निदान व उपाय ऐका")}
+                title={l("Listen to diagnosis", "निदान ऐका")}
               >
                 <Volume2 size={24} />
               </button>
@@ -705,59 +735,108 @@ export default function CropCheckPage() {
               {lang === "mr" ? result.explanation.mr : result.explanation.en}
             </p>
 
-            {/* Treatment Steps */}
-            <div className="mt-5 space-y-3 border-t border-line pt-4">
-              <h3 className="text-base font-bold text-ink">
-                {l("Action Plan & Remedies / खात्रीशीर उपाय:", "काय करावे / खात्रीशीर उपाय:")}
-              </h3>
-
-              <div className="space-y-2">
-                {/* Step 1: Cultural */}
-                <div className="flex items-start gap-3 rounded-xl bg-leaf-50/70 p-3">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-leaf-700 text-xs font-bold text-white">
-                    1
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-leaf-900">
-                      {l("Field & Leaf Care (स्वच्छता व निगा)", "शेतातील निगा व स्वच्छता")}
-                    </p>
-                    <p className="text-sm text-ink/90 mt-0.5">
-                      {lang === "mr" ? result.cultural.mr : result.cultural.en}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 2: Chemical / Spray */}
-                <div className="flex items-start gap-3 rounded-xl bg-soil-100/50 p-3">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-soil text-xs font-bold text-white">
-                    2
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-soil">
-                      {l("Spray / Medicine Recommendation (फवारणी उपाय)", "फवारणी व औषधोपचार")}
-                    </p>
-                    <p className="text-sm text-ink/90 mt-0.5">
-                      {lang === "mr" ? result.chemical.mr : result.chemical.en}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 3: Preventive */}
-                <div className="flex items-start gap-3 rounded-xl bg-sand p-3">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-white">
-                    3
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-muted">
-                      {l("Preventive Care (प्रतिबंधात्मक काळजी)", "भविष्यातील काळजी")}
-                    </p>
-                    <p className="text-sm text-ink/90 mt-0.5">
-                      {lang === "mr" ? result.preventive.mr : result.preventive.en}
-                    </p>
-                  </div>
-                </div>
+            {/* If Low Confidence or Unsupported: Explicit Advisory Callout */}
+            {(result.isUncertain || result.unsupportedCrop) && (
+              <div className="mt-4 rounded-xl border border-gold/40 bg-gold-100/30 p-3 text-xs text-[#6b4708] leading-relaxed">
+                <p className="font-bold flex items-center gap-1.5 mb-1">
+                  <AlertTriangle size={15} />
+                  <span>{l("Recommended Next Step:", "पुढील शिफारस:")}</span>
+                </p>
+                <p>
+                  {l(
+                    "Do not apply chemical sprays based on an uncertain reading. Consult your village Krishi Sahayak or visit the nearest Taluka Krishi Kendra with a physical sample.",
+                    "अस्पष्ट निदानावरून कोणतीही रासायनिक फवारणी करू नका. स्थानिक कृषी सहाय्यक किंवा नजीकच्या कृषी केंद्रात प्रत्यक्ष पान दाखवून सल्ला घ्या."
+                  )}
+                </p>
               </div>
-            </div>
+            )}
+
+            {/* Treatment Steps: Shown ONLY if verified in project data */}
+            {!result.isUncertain && !result.unsupportedCrop && (
+              <div className="mt-5 space-y-3 border-t border-line pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-ink">
+                    {l("Treatment & Action Plan", "उपाय व कृती योजना")}
+                  </h3>
+                  {result.verifiedSource ? (
+                    <span className="text-[11px] font-semibold text-leaf-700">
+                      ✓ {l("Verified Source", "पडताळणी झालेली माहिती")}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-muted">
+                      {l("Advisory guidance", "मार्गदर्शक माहिती")}
+                    </span>
+                  )}
+                </div>
+
+                {result.cultural || result.chemical || result.preventive ? (
+                  <div className="space-y-2">
+                    {/* Cultural Care */}
+                    {result.cultural && (
+                      <div className="flex items-start gap-3 rounded-xl bg-leaf-50/70 p-3">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-leaf-700 text-xs font-bold text-white">
+                          1
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-leaf-900">
+                            {l("Field Sanitation & Cultural Care", "शेतातील स्वच्छता व निगा")}
+                          </p>
+                          <p className="text-sm text-ink/90 mt-0.5">
+                            {lang === "mr" ? result.cultural.mr : result.cultural.en}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Chemical/Organic Spray */}
+                    {result.chemical && (
+                      <div className="flex items-start gap-3 rounded-xl bg-soil-100/50 p-3">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-soil text-xs font-bold text-white">
+                          2
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-soil">
+                            {l("Spray Recommendation", "फवारणी सल्ला")}
+                          </p>
+                          <p className="text-sm text-ink/90 mt-0.5">
+                            {lang === "mr" ? result.chemical.mr : result.chemical.en}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Preventive Care */}
+                    {result.preventive && (
+                      <div className="flex items-start gap-3 rounded-xl bg-sand p-3">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-white">
+                          3
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-muted">
+                            {l("Preventive Practice", "भविष्यातील काळजी")}
+                          </p>
+                          <p className="text-sm text-ink/90 mt-0.5">
+                            {lang === "mr" ? result.preventive.mr : result.preventive.en}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-line bg-cream p-3 text-xs text-muted leading-relaxed">
+                    <p className="font-semibold text-ink mb-1">
+                      {l("No verified chemical spray in database", "डेटाबेसमध्ये विशिष्ट फवारणी नोंद नाही")}
+                    </p>
+                    <p>
+                      {l(
+                        "Please ask a local agriculture officer or Krishi Kendra for dosage specific to your soil and stage.",
+                        "तुमच्या जमिनीच्या प्रकारानुसार व पीक अवस्थेनुसार अचूक मात्रा मिळवण्यासाठी स्थानिक कृषी अधिकाऱ्यांचा सल्ला घ्या."
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* Action Links */}
@@ -765,8 +844,9 @@ export default function CropCheckPage() {
             <button
               type="button"
               onClick={() => {
-                setPhotos([null, null, null, null, null]);
+                setPhotos([null, null]);
                 setResult(null);
+                setApiError(null);
                 if (typeof window !== "undefined" && "speechSynthesis" in window) {
                   window.speechSynthesis.cancel();
                 }
@@ -804,7 +884,7 @@ export default function CropCheckPage() {
                   <Lightbulb size={18} />
                 </span>
                 <h3 className="text-lg font-bold text-ink">
-                  {l("How to Take 4 Photos", "फोटो कसे काढायचे? मार्गदर्शन")}
+                  {l("How to Take Photos", "फोटो कसा काढायचा? मार्गदर्शन")}
                 </h3>
               </div>
               <button
@@ -826,9 +906,7 @@ export default function CropCheckPage() {
               <span>{l("Listen to Photo Guide in Marathi / English", "फोटो काढण्याचे मार्गदर्शन ऐका")}</span>
             </button>
 
-            {/* 4 Photo Protocol Guide */}
             <div className="mt-4 space-y-3">
-              {/* Point 1 */}
               <div className="flex items-start gap-3 rounded-2xl bg-white p-3.5 border border-line shadow-xs">
                 <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-gold-100 text-gold font-bold">
                   <Sun size={18} />
@@ -846,7 +924,6 @@ export default function CropCheckPage() {
                 </div>
               </div>
 
-              {/* Point 2 */}
               <div className="flex items-start gap-3 rounded-2xl bg-white p-3.5 border border-line shadow-xs">
                 <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-leaf-100 text-leaf-700 font-bold">
                   <ZoomIn size={18} />
@@ -859,42 +936,6 @@ export default function CropCheckPage() {
                     {l(
                       "Hold camera steady. Tap the screen to focus on the yellow spot, blight, or pest.",
                       "कॅमेरा स्थिर ठेवा. पानातील पिवळा किंवा काळा डाग स्पष्ट दिसेल असा फोकस करा."
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Point 3 */}
-              <div className="flex items-start gap-3 rounded-2xl bg-white p-3.5 border border-line shadow-xs">
-                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-soil-100 text-soil font-bold">
-                  <RefreshCw size={18} />
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-ink">
-                    {l("3. Turn Leaf Over (Underside)", "३. पानाची मागची बाजू तपासा")}
-                  </h4>
-                  <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                    {l(
-                      "Turn the leaf over. Sucking pests (aphids, mites) and white fungus usually hide behind the leaf.",
-                      "पान उलटे करून खालचा फोटो घ्या. मावा, तुडतुडे व बुरशी बहुधा पानांच्या मागेच असते."
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Point 4 */}
-              <div className="flex items-start gap-3 rounded-2xl bg-white p-3.5 border border-line shadow-xs">
-                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-800 font-bold">
-                  <Camera size={18} />
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-ink">
-                    {l("4. Step Back for Whole Plant (1-2 m)", "४. संपूर्ण झाडाचा फोटो (१-२ मीटर अंतर)")}
-                  </h4>
-                  <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                    {l(
-                      "Step back 1 to 2 meters to show the whole plant from front and side. This checks overall wilting or stem rot.",
-                      "थोडे मागे सरकून झाडाचा संपूर्ण आकार, वाळलेली पाने व खोड दिसेल असा फोटो काढा."
                     )}
                   </p>
                 </div>

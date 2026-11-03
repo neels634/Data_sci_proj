@@ -2,8 +2,27 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-import { Check, EllipsisVertical, MessageCircleQuestion, Pencil, Plus, SkipForward, Sprout, Trash2, Wheat } from "lucide-react";
+import { useState, useRef } from "react";
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  CheckCheck,
+  Copy,
+  EllipsisVertical,
+  FileText,
+  Lock,
+  MessageCircleQuestion,
+  Pencil,
+  Plus,
+  RefreshCw,
+  ShieldAlert,
+  SkipForward,
+  Sprout,
+  Trash2,
+  Wheat,
+  X,
+} from "lucide-react";
 import { getCrop, seasonName } from "@/lib/crops";
 import {
   currentStage,
@@ -19,12 +38,44 @@ import {
   addDays,
   type TaskOccurrence,
 } from "@/lib/lifecycle";
-import type { ActivityType, CropInfo, FarmCrop } from "@/lib/types";
+import type { ActivityType, CropInfo, FarmCrop, StressObservation } from "@/lib/types";
 import { ACTIVITY, LogActivitySheet, NotVerified, SprayBanner, StageTimeline, TaskRow, useFarm } from "@/components/myfarm/ui";
 import { Input } from "@/components/voice";
 import { SpeakButton } from "@/components/speech";
 import { ordinalMr, toAsciiDigits } from "@/lib/marathi-numbers";
-import { Button, Card, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+import { Button, Card, DemoBadge, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+
+function compressObservationPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode failed"));
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        const maxDim = 600; // compact thumbnail to ensure localStorage never overflows
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function FarmCropPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,12 +94,39 @@ export default function FarmCropPage() {
 }
 
 function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
-  const { state, l, tx, ctx, num, today, short, ago, cropTitle, markSown, markHarvested, removeFarmCrop, setTaskState } = useFarm();
+  const {
+    state,
+    account,
+    l,
+    tx,
+    ctx,
+    num,
+    today,
+    short,
+    ago,
+    cropTitle,
+    markSown,
+    markHarvested,
+    removeFarmCrop,
+    setTaskState,
+    addStressObservation,
+    deleteStressObservation,
+    toast,
+  } = useFarm();
+
   const router = useRouter();
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [log, setLog] = useState<{ type?: ActivityType; linkedTaskId?: string } | null>(null);
+
+  // Crop stress recording sheet & preview
+  const [showStressForm, setShowStressForm] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
   const acts = state.myFarmActivities.filter((a) => a.farmCropId === fc.id);
+  const plotStressObservations = (state.myStressObservations || []).filter((o) => o.farmCropId === fc.id);
+
   const day = dayNumber(fc, today);
   const now = currentStage(fc, crop, today);
   const hw = expectedHarvestWindow(fc);
@@ -57,6 +135,10 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
   const soon = upcomingTasks(fc, crop, state.myTaskStates, addDays(today, 1), 6);
   const growing = fc.status === "growing";
   const planned = fc.status === "planned";
+
+  const villageName = tx(state.profile.village) || account?.village || l("Navgaon", "नवगाव");
+  const districtName = tx(state.profile.district) || account?.district || l("Satara", "सातारा");
+  const farmerName = tx(state.profile.name) || account?.name || l("Farmer", "शेतकरी");
 
   const lastOf = (types: ActivityType[]) => lastActivity(acts, fc.id, types);
   const chips: [string, ReturnType<typeof lastOf>][] = [
@@ -72,7 +154,6 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
   );
 
   const mr = state.lang === "mr";
-  // ISO dates and digits are turned into Marathi words by the speech module
   const statusSpeech = [
     growing && now && day != null
       ? mr
@@ -85,8 +166,68 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
     .filter(Boolean)
     .join(" ");
 
+  // ── Stage 3: Generate Plain Text Case Summary for Mitra / Officials ────────
+  const generateCaseSummaryText = () => {
+    const lines: string[] = [];
+    lines.push("==================================================");
+    lines.push("SHET SAMRUDDHI — CROP STRESS CASE SUMMARY");
+    lines.push("==================================================");
+    lines.push(`Date of Summary: ${today}`);
+    lines.push(`Farmer Name: ${farmerName}`);
+    lines.push(`Location: Village ${villageName}, District ${districtName}`);
+    lines.push("");
+    lines.push("PLOT CONTEXT:");
+    lines.push(`- Crop: ${crop.name.en} (${crop.name.mr})`);
+    if (tx(fc.variety)) lines.push(`- Variety: ${tx(fc.variety)}`);
+    lines.push(`- Plot / Field: ${tx(fc.plotName) || "My Field"}`);
+    lines.push(`- Area: ${fc.areaAcres} Acres`);
+    lines.push(`- Season: ${seasonName(crop, fc.seasonIndex).en} (${seasonName(crop, fc.seasonIndex).mr})`);
+    lines.push(`- Sowing Date: ${fc.sowingDate || (fc.plannedSowingDate ? `Planned ${fc.plannedSowingDate}` : "Not recorded")}`);
+    if (now && day != null) {
+      lines.push(`- Current Stage: Day ${day} (${now.stage.name.en} / ${now.stage.name.mr})`);
+    }
+    lines.push("");
+    lines.push("FARMER-ENTERED STRESS OBSERVATIONS:");
+    if (plotStressObservations.length === 0) {
+      lines.push("  (No specific stress observations logged yet)");
+    } else {
+      plotStressObservations.forEach((obs, idx) => {
+        const cat = obs.stressCategory ? ` [${obs.stressCategory.toUpperCase()}]` : "";
+        const photoNote = obs.photoDataUrl ? " (Photo on farmer's device)" : "";
+        lines.push(`  ${idx + 1}. Date: ${obs.date}${cat}`);
+        lines.push(`     Notes: ${obs.symptomNotes}${photoNote}`);
+      });
+    }
+    lines.push("");
+    lines.push("AREA-LEVEL CONTEXT:");
+    lines.push("- Live Satellite/Weather: No live area sensor connected.");
+    lines.push("- Note: Area-level signals support awareness only; they do not prove plot-level damage or determine insurance eligibility.");
+    lines.push("");
+    lines.push("OFFICIAL NEXT STEPS & REPORTING:");
+    lines.push("- Suggested action: Share this case summary with your Gaon Mandi Mitra or local Krishi Sahayak (कृषी सहाय्यक).");
+    lines.push("- Reporting Window: [Verify current deadlines with your local Taluka Agriculture Office before use]");
+    lines.push("- Official Contact/Helpline: [Verify official MahaDBT / PMFBY helpline before use]");
+    lines.push("");
+    lines.push("DISCLAIMER:");
+    lines.push("This summary is record-keeping support prepared by the farmer for advisory discussion. It is not an official damage assessment or insurance claim decision.");
+    lines.push("==================================================");
+    return lines.join("\n");
+  };
+
+  const copySummaryToClipboard = async () => {
+    try {
+      const text = generateCaseSummaryText();
+      await navigator.clipboard.writeText(text);
+      setCopiedSummary(true);
+      toast(l("Case summary copied to clipboard!", "केस सारांश क्लिपबोर्डवर कॉपी झाला!"));
+      setTimeout(() => setCopiedSummary(false), 3000);
+    } catch {
+      toast(l("Failed to copy. Please select and copy manually.", "कॉपी करता आले नाही. कृपया स्वतः कॉपी करा."));
+    }
+  };
+
   return (
-    <div>
+    <div className="pb-16">
       <PageHeader
         back="/crops"
         title={`${crop.emoji} ${cropTitle(fc)}`}
@@ -134,7 +275,38 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
 
       {editing && <EditCrop fc={fc} onDone={() => setEditing(false)} />}
 
-      {/* status line */}
+      {/* Stage 2: Plot Details Strip (Crop, Sowing Date, Area, Village, Season) */}
+      <Card className="mb-3 border-line bg-white p-3.5 shadow-xs">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">
+          {l("Plot Details", "शेताचा तपशील")}
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+          <div>
+            <span className="text-muted block text-[11px]">{l("Crop & Variety", "पीक व वाण")}</span>
+            <span className="font-bold text-ink truncate block">
+              {crop.emoji} {cropTitle(fc)}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted block text-[11px]">{l("Sowing Date", "पेरणी तारीख")}</span>
+            <span className="font-bold text-ink block">
+              {fc.sowingDate ? short(fc.sowingDate) : fc.plannedSowingDate ? `${short(fc.plannedSowingDate)} (${l("Plan", "नियोजन")})` : l("Not set", "नोंद नाही")}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted block text-[11px]">{l("Area", "क्षेत्र")}</span>
+            <span className="font-bold text-ink block">{num(fc.areaAcres)} {l("acre", "एकर")}</span>
+          </div>
+          <div>
+            <span className="text-muted block text-[11px]">{l("Village & Season", "गाव व हंगाम")}</span>
+            <span className="font-bold text-ink block truncate">
+              {villageName} · {tx(seasonName(crop, fc.seasonIndex))}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Status banner */}
       <div className="rounded-3xl bg-gradient-to-br from-leaf-700 to-leaf-900 p-4 text-white">
         {growing && now ? (
           <>
@@ -245,6 +417,230 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
         </>
       )}
 
+      {/* ── STAGE 2: Crop Stress & Support Section ────────────────────────────── */}
+      <SectionTitle
+        action={
+          <Button
+            className="min-h-10 text-xs px-3"
+            onClick={() => setShowStressForm(true)}
+          >
+            <Plus size={16} />
+            <span>{l("Record Stress", "ताण नोंदवा")}</span>
+          </Button>
+        }
+      >
+        <span className="flex items-center gap-1.5">
+          <ShieldAlert size={20} className="text-soil" />
+          <span>{l("Crop Stress & Support", "पीक ताण व मदत")}</span>
+        </span>
+      </SectionTitle>
+
+      {/* Privacy Notice Banner */}
+      <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-line bg-cream p-3 text-xs text-muted leading-relaxed">
+        <Lock size={15} className="mt-0.5 shrink-0 text-leaf-700" />
+        <div>
+          <span className="font-semibold text-ink">
+            {l("Device Privacy Notice: ", "फोनवरील सुरक्षितता: ")}
+          </span>
+          {l(
+            "Photos and notes stay private on this device. They are not uploaded to a public ledger or public server. Note: if this phone is shared with others, local files can be viewed.",
+            "फोटो व नोंदी फक्त या फोनवर खाजगी राहतात. ते कोणत्याही सार्वजनिक सर्व्हरवर पाठवले जात नाहीत. हा फोन इतरांनी वापरल्यास ते फोनवरील माहिती पाहू शकतात."
+          )}
+        </div>
+      </div>
+
+      {/* Stress Observations List */}
+      {plotStressObservations.length === 0 ? (
+        <Card className="p-4 text-center border-dashed">
+          <p className="text-sm font-semibold text-ink">
+            {l("No crop stress recorded yet for this plot", "या शेतासाठी अजून कोणताही ताण नोंदवलेला नाही")}
+          </p>
+          <p className="text-xs text-muted mt-1">
+            {l(
+              "When you notice yellowing, wilting, pest spotting or water stress, record a dated observation here to build a timeline case for your Mitra.",
+              "पाने पिवळी पडणे, कीड, पाणीटंचाई किंवा कोमेजणे दिसल्यास तारीखवार नोंद करा, जेणेकरून मित्राला किंवा अधिकाऱ्याला दाखवता येईल."
+            )}
+          </p>
+          <Button
+            variant="secondary"
+            className="mt-3 min-h-10 text-xs"
+            onClick={() => setShowStressForm(true)}
+          >
+            <Plus size={14} />
+            <span>{l("Record First Observation", "पहिली ताण नोंद करा")}</span>
+          </Button>
+        </Card>
+      ) : (
+        <div className="space-y-2.5">
+          {plotStressObservations.map((obs) => (
+            <Card key={obs.id} className="p-3.5 flex items-start gap-3 border-soil/20 bg-white">
+              {obs.photoDataUrl ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewPhoto(obs.photoDataUrl)}
+                  className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-line hover:opacity-90 transition"
+                  title={l("Tap to expand photo", "फोटो मोठा करून पहा")}
+                >
+                  <img
+                    src={obs.photoDataUrl}
+                    alt="Observation thumbnail"
+                    className="size-full object-cover"
+                  />
+                  <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white py-0.5 text-center">
+                    {l("View", "पहा")}
+                  </span>
+                </button>
+              ) : (
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-soil-100 text-soil">
+                  <AlertTriangle size={20} />
+                </span>
+              )}
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-ink">{short(obs.date)}</span>
+                    {obs.stressCategory && (
+                      <span className="rounded-md bg-sand px-2 py-0.5 text-[10px] font-semibold text-muted uppercase">
+                        {obs.stressCategory}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(l("Delete this stress observation?", "ही नोंद काढून टाकायची का?"))) {
+                        deleteStressObservation(obs.id);
+                      }
+                    }}
+                    className="grid size-8 place-items-center rounded-full text-muted hover:text-soil transition"
+                    title={l("Delete observation", "काढून टाका")}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                <p className="text-xs text-ink/90 leading-relaxed break-words whitespace-pre-wrap">
+                  {obs.symptomNotes}
+                </p>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ── STAGE 3: Area-level Signal Context (Honest, Demo Labeled) ────────── */}
+      <div className="mt-6 rounded-2xl border border-line bg-white p-4 shadow-xs">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-ink">
+                {l("Area-level Signal Context", "परिसरातील माहिती")}
+              </h3>
+              <DemoBadge />
+            </div>
+            <p className="text-[11px] text-muted mt-0.5">
+              {l(
+                "Source: Area signal integration point (Offline / Demo) · Resolution: Taluka level",
+                "स्रोत: परिसरातील माहिती एकत्रीकरण बिंदू (ऑफलाइन / नमुना) · व्याप्ती: तालुका पातळी"
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Strictly neutral illustrative text — NO numbers, NO gauges, NO colors */}
+        <div className="rounded-xl bg-sand/50 p-3 text-xs text-muted leading-relaxed">
+          <p className="font-semibold text-ink mb-1">
+            {l("No live satellite or weather sensor connected", "थेट उपग्रह किंवा हवामान सेन्सर जोडलेला नाही")}
+          </p>
+          <p>
+            {l(
+              "Area-level signals support awareness only; they do not prove plot-level damage or determine insurance eligibility. When official satellite feeds are integrated in the future, block-level moisture and rainfall trends will appear here with verification stamps.",
+              "परिसरातील माहिती केवळ संदर्भासाठी आहे; यावरून वैयक्तिक नुकसान सिद्ध होत नाही किंवा विमा मंजुरी ठरत नाही. भविष्यात अधिकृत डेटा जोडल्यावर तालुका पातळीवरील पाऊस व ओलावा नोंदी येथे दिसतील."
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* ── STAGE 3: Plain-Text Case Summary Generator ──────────────────────── */}
+      <div className="mt-4 rounded-2xl border border-leaf-700/30 bg-leaf-50/50 p-4 shadow-xs">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div>
+            <h3 className="text-sm font-bold text-leaf-950 flex items-center gap-1.5">
+              <FileText size={17} className="text-leaf-700" />
+              <span>{l("Case Summary for Mitra / Officials", "मित्र किंवा अधिकाऱ्यांसाठी केस सारांश")}</span>
+            </h3>
+            <p className="text-xs text-leaf-900 mt-0.5">
+              {l(
+                "One-click copyable plain text with your plot details & stress notes.",
+                "शेताचा तपशील व तुमच्या नोंदींचा एक-क्लिक कॉपी करता येणारा मजकूर."
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={copySummaryToClipboard}
+            className={cx(
+              "flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm transition",
+              copiedSummary
+                ? "bg-emerald-700 text-white"
+                : "bg-leaf-700 text-white hover:bg-leaf-800"
+            )}
+          >
+            {copiedSummary ? <CheckCheck size={16} /> : <Copy size={16} />}
+            <span>{copiedSummary ? l("Copied!", "कॉपी झाले!") : l("Copy Summary", "सारांश कॉपी करा")}</span>
+          </button>
+        </div>
+
+        {/* Copyable text container preview */}
+        <div className="mt-2 rounded-xl border border-line bg-white p-3 font-mono text-[11px] leading-relaxed text-ink/80 max-h-44 overflow-y-auto whitespace-pre-wrap select-all">
+          {generateCaseSummaryText()}
+        </div>
+
+        {/* Official Reporting Instructions & Next Step */}
+        <div className="mt-3 space-y-1.5 border-t border-line/60 pt-2.5 text-xs text-muted">
+          <p className="font-bold text-ink">
+            {l("Suggested Next Steps & Official Reporting:", "पुढील पायऱ्या व अधिकृत नोंदणी:")}
+          </p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>
+              {l(
+                "Share this text with your local Gaon Mandi Mitra or Agriculture Assistant (कृषी सहाय्यक) via WhatsApp / SMS.",
+                "हा मजकूर आपल्या गाव मंडी मित्राला किंवा कृषी सहाय्यकाला व्हॉट्सॲप / एसएमएसद्वारे पाठवा."
+              )}
+            </li>
+            <li>
+              <span className="font-semibold text-ink">
+                {l("Official window: ", "अधिकृत मुदत: ")}
+              </span>
+              <span>
+                {l(
+                  "[Verify current reporting deadlines with your local Taluka Agriculture Office before use].",
+                  "[वापरण्यापूर्वी स्थानिक तालुका कृषी कार्यालयाशी मुदतीची खात्री करा]."
+                )}
+              </span>
+            </li>
+            <li>
+              <span className="font-semibold text-ink">
+                {l("Official Portal / Helpline: ", "अधिकृत पोर्टल / मदत क्रमांक: ")}
+              </span>
+              <span>
+                {l(
+                  "[Verify official PMFBY / MahaDBT helpline before use].",
+                  "[वापरण्यापूर्वी अधिकृत महाडीबीटी किंवा पीक विमा संपर्क तपासा]."
+                )}
+              </span>
+            </li>
+          </ul>
+          <p className="text-[10px] text-muted italic mt-1">
+            {l(
+              "Note: This tool provides record-keeping support. It does not determine or approve an insurance claim.",
+              "टीप: हे साधन केवळ शेतकरी नोंदींसाठी आहे. यावरून विम्याची मंजुरी किंवा निर्णय होत नाही."
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* Crop growth timeline */}
       <SectionTitle>{l("Crop timeline", "पिकाचे वेळापत्रक")}</SectionTitle>
       <StageTimeline
         stages={timeline(fc, crop)}
@@ -256,6 +652,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
         <NotVerified />
       </p>
 
+      {/* Activity log */}
       <SectionTitle
         action={
           fc.status !== "abandoned" && (
@@ -304,7 +701,238 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
         {l(`About ${crop.name.en} — crop guide`, `${crop.name.mr} — पीक माहिती`)}
       </Link>
 
+      {/* Activity Sheet */}
       {log && <LogActivitySheet fc={fc} initial={log} onClose={() => setLog(null)} />}
+
+      {/* ── STAGE 2: Record Stress Observation Sheet ─────────────────────────── */}
+      {showStressForm && (
+        <RecordStressSheet
+          fc={fc}
+          today={today}
+          onSave={(obs) => {
+            addStressObservation(obs);
+            setShowStressForm(false);
+          }}
+          onClose={() => setShowStressForm(false)}
+        />
+      )}
+
+      {/* Photo Preview Modal */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div className="relative max-w-sm w-full bg-white rounded-3xl overflow-hidden p-3" onClick={(e) => e.stopPropagation()}>
+            <img src={previewPhoto} alt="Stress observation preview" className="w-full rounded-2xl object-contain max-h-[70vh]" />
+            <Button full onClick={() => setPreviewPhoto(null)} className="mt-3 min-h-11">
+              {l("Close", "बंद करा")}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Form sheet to record dated stress observation */
+function RecordStressSheet({
+  fc,
+  today,
+  onSave,
+  onClose,
+}: {
+  fc: FarmCrop;
+  today: string;
+  onSave: (obs: Omit<StressObservation, "id" | "createdAt">) => void;
+  onClose: () => void;
+}) {
+  const { l, toast } = useFarm();
+  const [date, setDate] = useState(today);
+  const [notes, setNotes] = useState("");
+  const [category, setCategory] = useState<StressObservation["stressCategory"]>("disease");
+  const [photoData, setPhotoData] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePhotoSelect = async (file?: File) => {
+    if (!file) return;
+    setCompressing(true);
+    try {
+      const b64 = await compressObservationPhoto(file);
+      setPhotoData(b64);
+    } catch {
+      toast(l("Failed to process photo.", "फोटो लोड करता आला नाही."));
+    } finally {
+      setCompressing(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (!notes.trim()) {
+      toast(l("Please enter notes describing the stress symptoms.", "कृपया लक्षणांचे वर्णन लिहा."));
+      return;
+    }
+    onSave({
+      farmCropId: fc.id,
+      date,
+      symptomNotes: notes.trim(),
+      stressCategory: category,
+      photoDataUrl: photoData,
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 backdrop-blur-xs"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-cream p-5 pb-8 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="flex items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-lg bg-soil text-white">
+              <ShieldAlert size={18} />
+            </span>
+            <h3 className="text-lg font-bold text-ink">
+              {l("Record Crop Stress", "पीक ताण नोंदवा")}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-9 place-items-center rounded-full text-muted hover:bg-line/40 transition"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Privacy Note */}
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-sand/60 p-2.5 text-xs text-muted">
+          <Lock size={14} className="mt-0.5 shrink-0 text-leaf-700" />
+          <span>
+            {l(
+              "Notes & photos remain strictly on this phone. If this phone is shared, local files can be viewed.",
+              "नोंदी व फोटो फक्त या फोनवर राहतात. फोन इतरांनी वापरल्यास ते पाहू शकतात."
+            )}
+          </span>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {/* Date */}
+          <Field label={l("Observation Date", "तपासणी तारीख")}>
+            <input
+              type="date"
+              max={today}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          {/* Stress Category */}
+          <Field label={l("Stress Type", "ताणाचा प्रकार")}>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as StressObservation["stressCategory"])}
+              className={inputCls}
+            >
+              <option value="disease">{l("Disease / Blight (रोग / करपा)", "रोग / करपा")}</option>
+              <option value="pest">{l("Pest Attack (कीड / अळी / मावा)", "कीड / अळी / मावा")}</option>
+              <option value="water">{l("Water Stress / Drought (पाणीटंचाई / ओलावा कमी)", "पाणीटंचाई / ओलावा कमी")}</option>
+              <option value="weather">{l("Weather / Heat / Hail (उष्णता / गारपीट / अवकाळी)", "उष्णता / गारपीट / अवकाळी")}</option>
+              <option value="other">{l("Other Problem (इतर समस्या)", "इतर समस्या")}</option>
+            </select>
+          </Field>
+
+          {/* Notes description */}
+          <Field
+            label={l("Symptom Notes", "लक्षणांचे वर्णन")}
+            hint={l("Describe what you observed (leaves yellowing, wilting, insect spotting...)", "तुम्हाला काय दिसले ते लिहा (उदा. पाने पिवळी पडली, डाग, कीड...)")}
+          >
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={l(
+                "E.g., Yellow rings on lower leaves, spread to 4-5 plants since yesterday...",
+                "उदा. खालच्या पानांवर पिवळे डाग, कालपासून ४-५ झाडे कोमेजली आहेत..."
+              )}
+              className={cx(inputCls, "h-auto py-2")}
+            />
+          </Field>
+
+          {/* Optional Photo Attachment */}
+          <Field label={l("Attach Photo (Optional)", "फोटो जोडा (ऐच्छिक)")}>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className={cx(
+                "flex h-24 w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-3 text-center transition",
+                photoData
+                  ? "border-leaf-700 bg-white"
+                  : "border-line bg-white/60 hover:bg-white"
+              )}
+            >
+              {compressing ? (
+                <div className="flex items-center gap-2 text-xs text-muted">
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>{l("Compressing image...", "फोटो आकार कमी करत आहे...")}</span>
+                </div>
+              ) : photoData ? (
+                <div className="flex items-center gap-3 w-full">
+                  <img src={photoData} alt="Attached thumbnail" className="size-16 rounded-xl object-cover shrink-0" />
+                  <div className="flex-1 text-left">
+                    <span className="block text-xs font-bold text-leaf-800">
+                      {l("Photo attached (compressed)", "फोटो जोडला (आकार कमी केला)")}
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      {l("Tap to change", "बदलण्यासाठी टॅप करा")}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPhotoData(null);
+                    }}
+                    className="grid size-8 place-items-center rounded-full text-muted hover:text-soil"
+                    title={l("Remove photo", "फोटो काढा")}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-muted font-medium">
+                  <Camera size={20} className="text-leaf-700" />
+                  <span>{l("Take or upload photo (stored locally)", "फोटो काढा किंवा निवडा (फोनवर राहील)")}</span>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  handlePhotoSelect(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </Field>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={onClose} className="min-h-12">
+            {l("Cancel", "रद्द")}
+          </Button>
+          <Button onClick={handleSave} className="min-h-12">
+            {l("Save to Plot", "शेतावर जतन करा")}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -327,7 +955,6 @@ function EditCrop({ fc, onDone }: { fc: FarmCrop; onDone: () => void }) {
     setErr(e);
     if (Object.keys(e).length) return;
     updateFarmCrop(fc.id, {
-      // keep the bilingual seed text when the farmer didn't change it
       variety: variety === tx(fc.variety) ? fc.variety : variety.trim().slice(0, 40),
       plotName: plot === tx(fc.plotName) ? fc.plotName : plot.trim().slice(0, 40),
       areaAcres: a,

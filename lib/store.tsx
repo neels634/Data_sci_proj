@@ -39,6 +39,7 @@ import type {
   Report,
   Role,
   Scheme,
+  StressObservation,
   TaskState,
   TrackerStatus,
 } from "./types";
@@ -68,6 +69,7 @@ interface AppState {
   farmCrops: FarmCrop[];
   farmActivities: FarmActivity[];
   taskStates: TaskState[];
+  stressObservations: StressObservation[];
 }
 
 const initialState = (): AppState => {
@@ -97,6 +99,7 @@ const initialState = (): AppState => {
   farmCrops: farm.crops,
   farmActivities: farm.activities,
   taskStates: farm.taskStates,
+  stressObservations: [],
   };
 };
 
@@ -442,6 +445,29 @@ function useAppStore() {
           };
         }),
 
+      addStressObservation: (obs: Omit<StressObservation, "id" | "createdAt">) =>
+        setState((s) => {
+          if (!s.farmCrops.some((c) => c.id === obs.farmCropId && c.owner === s.sessionId)) return s;
+          later(bi("Stress observation saved to plot timeline", "पिकाच्या ताणाची नोंद जतन केली"));
+          const entry: StressObservation = {
+            ...obs,
+            id: uid("so"),
+            createdAt: new Date().toISOString(),
+          };
+          return {
+            ...s,
+            stressObservations: [entry, ...(s.stressObservations || [])],
+          };
+        }),
+      deleteStressObservation: (id: string) =>
+        setState((s) => {
+          later(bi("Observation removed", "नोंद काढून टाकली"));
+          return {
+            ...s,
+            stressObservations: (s.stressObservations || []).filter((o) => o.id !== id),
+          };
+        }),
+
       addReport: (about: Text, reason: Text) =>
         setState((s) => {
           later(bi("Report sent to the admin team", "तक्रार प्रशासन टीमला पाठवली"));
@@ -500,6 +526,7 @@ function useAppStore() {
       myFarmCrops: state.farmCrops.filter((c) => c.owner === sessionId),
       myFarmActivities: state.farmActivities.filter((a) => state.farmCrops.some((c) => c.id === a.farmCropId && c.owner === sessionId)),
       myTaskStates: state.taskStates.filter((t) => state.farmCrops.some((c) => c.id === t.farmCropId && c.owner === sessionId)),
+      myStressObservations: (state.stressObservations || []).filter((o) => state.farmCrops.some((c) => c.id === o.farmCropId && c.owner === sessionId)),
     }),
     [state, key, sessionId],
   );
