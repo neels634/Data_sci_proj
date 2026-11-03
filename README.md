@@ -104,6 +104,24 @@ data, and the screen says so.** They cover soybean, tomato and onion across Phal
 Baramati and Pune. To go live, feed `MARKETS` from a real source such as AGMARKNET; the calculations
 stay the same.
 
+## Satellite farm analysis (Crop Check)
+
+`/crop-check/satellite` lets a farmer draw or upload a field and see a crop health map from real
+Sentinel-2 imagery of the last 90 days. It needs a second service, `backend/main.py`, which talks
+to Google Earth Engine and is separate from the disease model in `backend/app/main.py`:
+
+```bash
+cd backend
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements-satellite.txt
+earthengine authenticate
+.venv/Scripts/python -m uvicorn main:app --reload --port 8001
+```
+
+The app reaches it through `/api/satellite/*`. Set `SATELLITE_API_URL` when it isn't on
+`http://127.0.0.1:8001`, and `GEE_PROJECT` to use another Earth Engine project. The service has no
+login of its own and spends your Earth Engine quota, so don't expose it publicly as it is.
+
 ## Demo-data rules followed
 
 - All people, buyers, prices, enterprises and figures are fictional and labelled as demo data.
