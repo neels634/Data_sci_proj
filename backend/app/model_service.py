@@ -225,6 +225,14 @@ class ModelService:
                 raise ValueError(f"Unsupported model type: {model_type}")
 
             self.adapter.load_model()
+            # Verify adapter loaded a real model session
+            has_real_model = (
+                getattr(self.adapter, "session", None) is not None
+                or getattr(self.adapter, "model", None) is not None
+            )
+            if not has_real_model:
+                raise RuntimeError(f"Adapter '{model_type}' reported success but no active model instance is present.")
+
             self.model_loaded = True
             self.model_info = self.adapter.get_model_info()
 
@@ -234,6 +242,7 @@ class ModelService:
         except Exception as e:
             logger.error("Error loading model: %s", e, exc_info=True)
             self.model_loaded = False
+            self.adapter = None
             raise
 
     def get_supported_crops(self) -> Dict[str, Dict]:
@@ -502,33 +511,42 @@ class ModelService:
         }
 
     def get_model_info(self) -> Dict[str, Any]:
-        """Get information about the loaded model."""
-        if not self.model_loaded:
-            return {"error": "Model not loaded"}
+        """Get information about the loaded model without exposing internal filesystem paths."""
+        if not self.model_loaded or not self.adapter:
+            return {
+                "status": "unavailable",
+                "error": "Model not loaded",
+                "active_framework": None,
+                "classes": self.config.get_class_names() if self.config else [],
+            }
 
         model_config = self.config.model_config
+        adapter_info = self.adapter.get_model_info() if self.adapter else {}
+        active_framework = getattr(self.adapter, "model_type", None) or model_config.framework
+
         return {
             "name": model_config.name,
             "version": model_config.version,
             "description": model_config.description,
-            "framework": model_config.framework,
-            "input_shape": model_config.input_shape,
+            "active_framework": active_framework,
+            "runtime_status": "loaded",
+            "input_shape": adapter_info.get("input_shape", model_config.input_shape),
             "classes": self.config.get_class_names(),
             "total_classes": len(self.config.get_class_names()),
-            "supported_formats": model_config.supported_formats,
             "severity_levels": len(self.config.severity_levels),
             "treatment_types": list(self.config.treatment_types.keys()),
         }
 
     def is_healthy(self) -> bool:
-        """Check if the model service is loaded and ready."""
+        """Check if the model service is loaded and ready with an authentic model."""
         try:
-            return (
-                self.model_loaded
-                and self.adapter is not None
-                and self.config is not None
-                and len(self.config.get_class_names()) > 0
+            if not self.model_loaded or self.adapter is None or self.config is None:
+                return False
+            has_real_model = (
+                getattr(self.adapter, "session", None) is not None
+                or getattr(self.adapter, "model", None) is not None
             )
+            return bool(has_real_model and len(self.config.get_class_names()) > 0)
         except Exception:
             return False
 

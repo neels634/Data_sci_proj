@@ -1,6 +1,6 @@
 # Shet Samruddhi (शेत समृद्धी) — Prototype & Architecture Guide
 
-A mobile-first agricultural operating system and record-keeping companion designed for smallholder farmers in Maharashtra.
+A mobile-first agricultural operating system and record-keeping companion prototype designed for smallholder farmers in Maharashtra.
 
 ## Product Promise
 
@@ -17,22 +17,23 @@ This repository contains multiple frontend workspaces and a Python backend. Belo
 | Directory | Framework & Port | Role & Canonical Status | Details |
 |---|---|---|---|
 | **`/` (Root)** | Next.js 15, React 19 (Port 3000) | **Canonical User-Facing App** | The unified bilingual (English/Marathi) mobile-first application containing onboarding, Crop Check, My Farm plots, stress timelines, Mandi Mitra, and government schemes. |
-| **`backend/`** | FastAPI, Python 3.11 (Port 8000) | **Canonical AI Inference Service** | Serves the 38-class MobileNetV2 ONNX model (`backend/models/plant_disease_model.onnx`), botanical foliage validation, and onion IPM guidance. |
-| **`frontend/`** | Vite, React 18 (Port 5173) | *Legacy Sub-App* | Early standalone disease classification UI. Kept for historical reference; not wired to the unified Shet Samruddhi multi-feature workflow. |
-| **`crop-check/`** | Vite, React 18 (Port 5174) | *Prototype Sub-App* | Experimental multi-photo capture prototype using mock data (`USE_MOCK = true`). |
+| **`backend/`** | FastAPI, Python 3.11 (Port 8000) | **Canonical AI Inference Service** | Serves the 38-class MobileNetV2 ONNX runtime, botanical foliage validation, and onion educational guidance. |
+| **`frontend/`** | Vite, React 18 (Port 5173) | *Legacy Sub-App* | Standalone disease classification test UI from an earlier stage. Not wired to the unified Shet Samruddhi multi-feature workflow. |
+| **`crop-check/`** | Vite, React 18 (Port 5174) | *Prototype Sub-App* | Experimental multi-photo capture prototype using mock data (`const USE_MOCK = true;` in `crop-check/src/api.ts`). |
 
 ---
 
 ## 2. Crop Capabilities: AI Model vs. Farm Record vs. Educational
 
-To avoid misleading farmers or extension officers, crop capabilities are partitioned into distinct tiers:
+To maintain product integrity, crop capabilities are partitioned into distinct tiers:
 
 1. **AI Disease Classification (14 Crops):**
    - **Supported Species:** Apple, Blueberry, Cherry, Corn (Maize), Grape, Orange, Peach, Bell Pepper, Potato, Raspberry, Soybean, Squash, Strawberry, Tomato.
-   - **Model:** 38-class MobileNetV2 ONNX model (`plant_disease_model.onnx`).
-   - **Crop Mismatch Protection:** If a user selects a crop (e.g. Tomato) but the model detects a different species (e.g. Corn), the backend returns an explicit crop mismatch advisory rather than forcing a 100% false diagnosis.
+   - **Configured Runtime:** MobileNetV2 ONNX model (`backend/models/plant_disease_model.onnx`).
+   - **Crop Mismatch Defense:** If a user selects a crop (e.g. Tomato) but the model detects a different species (e.g. Corn), the backend returns an explicit crop mismatch advisory rather than forcing a 100% false diagnosis.
+   - **Uncertainty Abstention:** Softmax outputs below demonstration threshold (0.40) or ambiguous foliage return an inconclusive advisory directing the user to a physical Krishi Mitra inspection.
 2. **Educational Guidance Only (No AI Model):**
-   - **Onion (कांदा):** Handled via a verified IPM agronomic symptom guide (`mode: "symptom_guide"`). Does NOT execute AI inference; explicitly instructs farmers to seek physical inspection from a local Krishi Mitra.
+   - **Onion (कांदा):** Handled via an educational agronomy symptom guide (`mode: "symptom_guide"`). Does NOT execute AI inference; explicitly instructs farmers to seek laboratory or agricultural officer inspection.
 3. **Farm-Record & Plot Management (All Crops):**
    - In **My Farm** (`/crops`), farmers can track any crop (including sugarcane, cotton, onion, and pulses) through growth stages, daily tasks, dated stress observations, and case summaries.
 
@@ -42,7 +43,7 @@ To avoid misleading farmers or extension officers, crop capabilities are partiti
 
 | Capability / Module | Status | Privacy & Data Storage | Details |
 |---|---|---|---|
-| **AI Crop Check (`/crop-check`)** | **REAL LOCAL MODEL** | **Sent to Backend** | Uploaded leaf close-up photos are sent via HTTP POST to the local FastAPI backend (`/api/predict`). Not stored on a public server. |
+| **AI Crop Check (`/crop-check`)** | **REAL LOCAL MODEL (When Present)** | **Sent to Backend** | Uploaded leaf close-up photos are sent via HTTP POST to the local FastAPI backend (`/api/predict`). Photos are not stored on a public server. |
 | **Plot Stress Timeline (`/crops/my/[id]`)** | **REAL LOCAL DATA** | **Device LocalStorage** | Farmer observations (notes, dates, and canvas-compressed photo thumbnails) are stored strictly in browser `localStorage` (`udyamsetu-state-v5`). Photos never leave the device. |
 | **Case Summary Generator** | **REAL CLIENT LOGIC** | **Device LocalStorage** | Generates copyable plain text for WhatsApp/SMS with plot metadata and chronological stress logs. Does not embed photos. |
 | **Area-level Signal** | **DEMO PLACEHOLDER** | **Client State** | Visibly marked with a `<DemoBadge />`. Neutral illustrative text without numbers or color scales to prevent confusion with official survey damage indices. |
@@ -51,27 +52,71 @@ To avoid misleading farmers or extension officers, crop capabilities are partiti
 
 ---
 
-## 4. Run Instructions
+## 4. Setup & Run Instructions (Clean Checkout)
 
-### 1. Start the AI Backend (FastAPI + ONNX Runtime)
-```bash
-cd backend
-./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-- Health Check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
-- API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+### Note on Clean Checkout vs. Local Workspace
+- In this development workspace, a local ONNX model file (`backend/models/plant_disease_model.onnx`) is present.
+- In a fresh clone or clean checkout, large binary weights and archives may be excluded from version control if redistribution rights are unresolved. If the model artifact is absent, the backend reports `status: 503 (Model service unavailable)` on `/api/health` and `/api/predict`. The frontend handles this honestly by displaying a connection error card rather than fabricating diagnoses.
 
-### 2. Start the Canonical Frontend (Next.js 15)
-```bash
-# In the repository root
-npm install
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000).
+### A. Backend Setup (FastAPI + ONNX Runtime)
+
+1. **Create and activate a virtual environment:**
+   ```bash
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   # Lightweight deployment dependencies (FastAPI + ONNX Runtime + Pillow)
+   pip install -r requirements-deploy.txt
+
+   # Or full ML development dependencies (including training tools):
+   # pip install -r requirements.txt
+   ```
+
+3. **Provide model assets (if missing):**
+   - Ensure `plant_disease_model.onnx` is placed in `backend/models/`.
+   - Ensure `labels.json` is placed in `backend/`.
+   - Default configuration resolves paths relative to `backend/`. You can override paths via environment variables:
+     ```bash
+     export MODEL_TYPE=onnx
+     export MODEL_PATH=models/plant_disease_model.onnx
+     export MODEL_LABELS_PATH=labels.json
+     ```
+
+4. **Start the API service:**
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+   - Liveness Probe: `http://localhost:8000/api/health/live` (HTTP 200 if process is running)
+   - Readiness Probe: `http://localhost:8000/api/health/ready` (HTTP 200 if model loaded, HTTP 503 if unavailable)
+   - Health Status: `http://localhost:8000/api/health`
+   - Model Info: `http://localhost:8000/api/model/info`
+   - Interactive Docs: `http://localhost:8000/docs`
+
+### B. Frontend Setup (Next.js 15)
+
+1. **Install dependencies and run dev server:**
+   ```bash
+   # From repository root
+   npm install
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 5. Sample Accounts (PIN: `1234`)
+## 5. Security & Rate Limiting Overview
+
+- **Authentication:** By default in demo/development mode, `API_KEY` is not set (`None`), allowing open local access. If `API_KEY` is configured in `backend/.env` or the environment, all requests to `/api/predict` must supply a matching HTTP Bearer token (`Authorization: Bearer <API_KEY>`).
+- **Rate Limiting:** `/api/predict` is rate-limited via SlowAPI (default: 100 requests / 60 seconds). Client identification uses `request.client.host`. Forwarded headers (`X-Forwarded-For`) are untrusted unless `BEHIND_TRUSTED_PROXY=True` is explicitly configured.
+- **Scope Notice:** Basic rate limiting, CORS restrictions, and response security headers provide baseline defensive hygiene for prototyping, but do not constitute an enterprise network perimeter or production security barrier.
+
+---
+
+## 6. Sample Accounts (PIN: `1234`)
 
 | Role | Mobile | Name |
 | --- | --- | --- |
@@ -211,3 +256,11 @@ for a native speaker to check.
 
 Server-side authentication, a database, PIN reset, SMS/WhatsApp, photo upload, weighing
 entry, buyer verification, and payments.
+
+---
+
+## 7. Licensing & Model Card
+
+- **Source Code License:** License not yet selected by repository contributors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- **Model Card & Evaluation Protocol:** See [MODEL_CARD.md](MODEL_CARD.md) for architecture specifications, known limitations, and the proposed Phase 3 evaluation protocol.
+- **Safety Notice:** Diagnostic results are prototype advisory screenings and must never be treated as confirmed plant pathology diagnoses or proof for insurance claims.

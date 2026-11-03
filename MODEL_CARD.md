@@ -14,7 +14,7 @@
 - **Input Dimensions:** `1 x 3 x 224 x 224` (RGB, Normalized: `(pixel / 255.0 - 0.5) / 0.5`, NCHW format)
 - **Output:** Logits transformed via numerically stable Softmax to 38 class probabilities
 - **Supported Crops (14 species):** Apple, Blueberry, Cherry, Corn (Maize), Grape, Orange, Peach, Pepper (Bell), Potato, Raspberry, Soybean, Squash, Strawberry, Tomato.
-- **Educational Guidance Only (No AI Model):** Onion (provides verified IPM agronomic symptom guide, no classifier).
+- **Educational Guidance Only (No AI Model):** Onion (provides educational agronomy symptom reference for common conditions, no AI classifier).
 
 ---
 

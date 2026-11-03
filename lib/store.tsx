@@ -48,6 +48,7 @@ import type {
 interface AppState {
   role: Role;
   lang: Lang;
+  theme: "bright" | "dark";
   /** accounts registered in this browser; there is no server */
   accounts: Account[];
   /** id of the signed-in account, or null when signed out */
@@ -82,6 +83,7 @@ const initialState = (): AppState => {
   return {
   role: "farmer",
   lang: "en",
+  theme: "bright",
   accounts: seedAccounts,
   sessionId: null,
   profile: seedProfile,
@@ -114,7 +116,7 @@ const STORAGE_KEY = "udyamsetu-state-v6";
 const V5_STORAGE_KEY = "udyamsetu-state-v5";
 const V4_STORAGE_KEY = "udyamsetu-state-v4";
 /** What survives the v4 → v5 upgrade. Women & SHG data (enterprises, enquiries) is dropped. */
-const V4_KEEP = ["lang", "role", "profile", "accounts", "sessionId", "schemes", "listings", "lots", "offers", "plans", "bookmarksBy", "trackerBy", "reports", "activityBy"] as const;
+const V4_KEEP = ["lang", "theme", "role", "profile", "accounts", "sessionId", "schemes", "listings", "lots", "offers", "plans", "bookmarksBy", "trackerBy", "reports", "activityBy"] as const;
 
 /** v5 → v6: My Farm crops gain `kind`; every existing crop is seasonal. */
 const toV6 = (saved: Partial<AppState>): Partial<AppState> => ({
@@ -122,14 +124,17 @@ const toV6 = (saved: Partial<AppState>): Partial<AppState> => ({
   farmCrops: (saved.farmCrops ?? []).map((c) => ({ ...c, kind: c.kind ?? "seasonal" })),
 });
 
+/** Saved data from before dark mode, or a damaged value, opens in the bright theme. */
+const withValidTheme = (saved: Partial<AppState>): Partial<AppState> => ({ ...saved, theme: saved.theme === "dark" ? "dark" : "bright" });
+
 /** Read saved state; upgrades older versions once without losing accounts or crops. */
 function loadSaved(): Partial<AppState> | null {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) return toV6(JSON.parse(raw));
+  if (raw) return withValidTheme(toV6(JSON.parse(raw)));
   const v5 = localStorage.getItem(V5_STORAGE_KEY);
   if (v5) {
     localStorage.removeItem(V5_STORAGE_KEY);
-    return toV6(JSON.parse(v5));
+    return withValidTheme(toV6(JSON.parse(v5)));
   }
   const old = localStorage.getItem(V4_STORAGE_KEY);
   if (!old) return null;
@@ -199,6 +204,13 @@ function useAppStore() {
     return {
       setRole: (role: Role) => setState((s) => ({ ...s, role })),
       setLang: (lang: Lang) => setState((s) => ({ ...s, lang })),
+      setTheme: (theme: "bright" | "dark") => setState((s) => ({ ...s, theme })),
+      toggleTheme: () =>
+        setState((s) => {
+          const next = s.theme === "dark" ? "bright" : "dark";
+          later(next === "dark" ? bi("Dark mode on", "रात्र मोड सुरू") : bi("Bright mode on", "दिवस मोड सुरू"));
+          return { ...s, theme: next };
+        }),
       /** create an account and sign in with it */
       register: (account: Account) =>
         setState((s) => {

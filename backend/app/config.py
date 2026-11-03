@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     debug: bool = Field(default=True, alias="DEBUG")
     
     # Model Configuration
-    model_path: str = Field(default="models/best_model.h5", alias="MODEL_PATH")
+    model_path: str = Field(default="models/plant_disease_model.onnx", alias="MODEL_PATH")
     model_json_path: str = Field(default="models/model.json", alias="MODEL_JSON_PATH")
-    model_type: str = Field(default="tensorflow", alias="MODEL_TYPE")
+    model_type: str = Field(default="onnx", alias="MODEL_TYPE")
     model_labels_path: str = Field(default="labels.json", alias="MODEL_LABELS_PATH")
     
     # Security Configuration

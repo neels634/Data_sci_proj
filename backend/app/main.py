@@ -6,6 +6,7 @@ import os
 os.environ.setdefault("KERAS_HOME", "/tmp/.keras")
 import asyncio
 import logging
+from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,10 +52,10 @@ task_manager = AsyncTaskManager(max_concurrent_tasks=getattr(settings, 'max_conc
 security = HTTPBearer(auto_error=False) if settings.api_key else None
 
 
-async def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verify API key for protected endpoints."""
+async def verify_api_key(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    """Verify API key for protected endpoints if API_KEY is configured in settings."""
     if not settings.api_key:
-        return True  # No API key required
+        return True  # Open demo mode; no API key configured
     
     if not credentials or credentials.credentials != settings.api_key:
         await security_audit.log_event(
@@ -63,7 +64,7 @@ async def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(sec
         )
         raise HTTPException(
             status_code=401,
-            detail="Invalid API key",
+            detail="Invalid or missing API key",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -184,7 +185,12 @@ async def internal_error_handler(request: Request, exc):
 
 # Include routers
 app.include_router(health_router, prefix="/api", tags=["Health"])
-app.include_router(predict_router, prefix="/api", tags=["Prediction"])
+app.include_router(
+    predict_router,
+    prefix="/api",
+    tags=["Prediction"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 # Root endpoint

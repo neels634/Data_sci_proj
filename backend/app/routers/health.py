@@ -8,6 +8,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.get("/health/live")
+async def liveness_check():
+    """Liveness probe: returns 200 if the server process is alive."""
+    return {
+        "status": "alive",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/health/ready")
+async def readiness_check():
+    """Readiness probe: returns 200 only if the model is loaded and ready for inference."""
+    if not model_service.is_healthy():
+        raise HTTPException(
+            status_code=503,
+            detail="Model service is not ready for inference",
+            headers={"Retry-After": "30"},
+        )
+    return {
+        "status": "ready",
+        "model_loaded": True,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint reflecting actual model availability."""
