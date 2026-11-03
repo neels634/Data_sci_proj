@@ -99,6 +99,47 @@ html.dark textarea,
   border-color: #283a30 !important;
 }
 
+/* Dark text colours used across the app would disappear on the dark panels */
+html.dark .text-leaf-950,
+html.dark .text-leaf-900,
+html.dark .text-leaf-800,
+html.dark .text-leaf-700 {
+  color: #a8dcbd !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: #f1f7f3 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400 {
+  color: #a0b2a7 !important;
+}
+
+html.dark .text-soil {
+  color: #e59a78 !important;
+}
+
+html.dark .text-\[\#6b4708\] {
+  color: #f2d795 !important;
+}
+
+html.dark .text-\[\#28507a\] {
+  color: #a9c8ea !important;
+}
+
+html.dark .text-\[\#7a3519\] {
+  color: #efb094 !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: #1c2721 !important;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
