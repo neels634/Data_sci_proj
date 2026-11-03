@@ -214,10 +214,13 @@ const loadingIdNow = () => loadingId;
 // defaults; the server's provider sets its own (Gemini: 800 characters, 6 s)
 const FIRST_CHUNK_MS = 4000;
 const CLOUD_CHUNK = 600;
-const CACHE_NAME = "shet-tts-v1";
+// v2: v1 Gemini clips began with a spoken style instruction; old caches are deleted on first use
+const CACHE_NAME = "shet-tts-v2";
+const OLD_CACHES = ["shet-tts-v1"];
 const CACHE_MAX_ENTRIES = 300;
 const CACHE_MAX_BYTES = 40 * 1024 * 1024;
-const INDEX_KEY = "shet-tts-index"; // [{ k, n }] oldest first: cache key and size
+const INDEX_KEY = "shet-tts-index-v2"; // [{ k, n }] oldest first: cache key and size
+const OLD_INDEX_KEYS = ["shet-tts-index"];
 const VOICE_KEY = "shet-tts-voice:"; // last known server voice per language, for offline replay
 const STATIC_BASE = process.env.NEXT_PUBLIC_TTS_STATIC_BASE || "/tts";
 
@@ -268,8 +271,19 @@ const loadManifest = () =>
     .then((m: { files?: Record<string, string> }) => m.files ?? {})
     .catch((): Record<string, string> => ({})));
 
+let oldCachesGone: Promise<void> | null = null;
+/** Deletes earlier caches once per page load, so their clips can never play again. */
+const dropOldCaches = () =>
+  (oldCachesGone ??= (async () => {
+    try {
+      await Promise.all(OLD_CACHES.map((n) => caches.delete(n)));
+      OLD_INDEX_KEYS.forEach((k) => localStorage.removeItem(k));
+    } catch {}
+  })());
+
 async function cacheGet(key: string): Promise<Blob | null> {
   try {
+    await dropOldCaches();
     const c = await caches.open(CACHE_NAME);
     const hit = await c.match(`/__tts/${key}`);
     return hit ? await hit.blob() : null;
@@ -280,6 +294,7 @@ async function cacheGet(key: string): Promise<Blob | null> {
 
 async function cachePut(key: string, blob: Blob) {
   try {
+    await dropOldCaches();
     const c = await caches.open(CACHE_NAME);
     await c.put(`/__tts/${key}`, new Response(blob, { headers: { "Content-Type": blob.type || "audio/mpeg" } }));
     let index: { k: string; n: number }[] = [];

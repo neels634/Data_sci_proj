@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 const PER_MINUTE = 30; // requests per visitor per minute
 const CACHE_MAX = 200; // synthesized clips kept in memory
+// part of every cache key: bump it to drop all cached clips (v2: Gemini without a spoken instruction)
+const CACHE_VERSION = "v2";
 
 // same simple per-visitor limit as app/api/chat/route.ts
 const hits = new Map<string, number[]>();
@@ -64,7 +66,7 @@ export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (limited(ip)) return fail("Too many requests — please wait a minute", 429);
 
-  const hash = createHash("sha256").update(`${provider.voiceId(lang)}|${speaker ?? ""}\n${lang}\n${text}`).digest("hex");
+  const hash = createHash("sha256").update(`${CACHE_VERSION}|${provider.voiceId(lang)}|${speaker ?? ""}\n${lang}\n${text}`).digest("hex");
   const hit = cache.get(hash);
   if (hit) {
     remember(hash, hit);
