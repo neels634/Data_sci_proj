@@ -19,9 +19,10 @@ class Settings(BaseSettings):
     model_labels_path: str = Field(default="labels.json", alias="MODEL_LABELS_PATH")
     
     # Security Configuration
-    secret_key: str = Field(default="your-super-secret-key-change-in-production", alias="SECRET_KEY")
+    secret_key: str = Field(default="change-in-production-only-if-auth-enabled", alias="SECRET_KEY")
     api_key_name: str = Field(default="X-API-Key", alias="API_KEY_NAME")
     api_key: Optional[str] = Field(default=None, alias="API_KEY")
+    behind_trusted_proxy: bool = Field(default=False, alias="BEHIND_TRUSTED_PROXY")
     
     # CORS Configuration
     cors_origins: str = Field(
