@@ -30,10 +30,12 @@ type Props = {
   onMapReady: (map: L.Map | null) => void;
   onDrawn: (polygon: PolygonGeometry) => void;
   onDrawPoints: (points: number | null) => void;
+  /** a small map inside a page, with no back button or heading laid over it */
+  embedded?: boolean;
 };
 
 /** Leaflet map with Google hybrid imagery, polygon drawing, and the field's white boundary. */
-const MapView = forwardRef<MapHandle, Props>(function MapView({ boundary, bottomInset, drawTip, onMapReady, onDrawn, onDrawPoints }, ref) {
+const MapView = forwardRef<MapHandle, Props>(function MapView({ boundary, bottomInset, drawTip, onMapReady, onDrawn, onDrawPoints, embedded }, ref) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const drawer = useRef<DrawHandler | null>(null);
@@ -60,7 +62,7 @@ const MapView = forwardRef<MapHandle, Props>(function MapView({ boundary, bottom
       }, 800 * (tries + 1));
     });
     const zoom = L.control.zoom({ position: "topleft" }).addTo(map);
-    zoom.getContainer()!.style.marginTop = "64px"; // below the back button
+    if (!embedded) zoom.getContainer()!.style.marginTop = "64px"; // below the back button
 
     const setPoints = (n: number | null) => {
       points.current = n ?? 0;
@@ -84,6 +86,8 @@ const MapView = forwardRef<MapHandle, Props>(function MapView({ boundary, bottom
       map.remove();
       mapRef.current = null;
     };
+    // the mount-time look of the map never changes for one instance
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -122,11 +126,11 @@ const MapView = forwardRef<MapHandle, Props>(function MapView({ boundary, bottom
       interactive: false,
     }).addTo(map);
     // not animated: Leaflet ignores a new zoom while one is running, and this refits as the panel resizes
-    map.fitBounds(shape.getBounds(), { paddingTopLeft: [24, 116], paddingBottomRight: [24, bottomInset + 12], maxZoom: 18, animate: false });
+    map.fitBounds(shape.getBounds(), { paddingTopLeft: embedded ? [20, 20] : [24, 116], paddingBottomRight: [20, bottomInset + 12], maxZoom: 18, animate: false });
     return () => {
       shape.remove();
     };
-  }, [boundary, bottomInset]);
+  }, [boundary, bottomInset, embedded]);
 
   return <div ref={container} className="absolute inset-0 bg-slate-900" aria-label="Satellite map" />;
 });

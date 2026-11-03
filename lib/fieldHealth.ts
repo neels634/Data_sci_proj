@@ -49,7 +49,7 @@ const median = (values: number[]) => {
 };
 
 /** Metres from a point to the nearest edge of the field. */
-function distanceToEdge([lng, lat]: number[], boundary: PolygonGeometry) {
+export function distanceToEdge([lng, lat]: number[], boundary: PolygonGeometry) {
   const scaleX = METRES_PER_DEGREE * Math.cos((lat * Math.PI) / 180);
   let best = Infinity;
   for (const ring of boundary.coordinates) {
@@ -68,7 +68,7 @@ function distanceToEdge([lng, lat]: number[], boundary: PolygonGeometry) {
 }
 
 /** Which side of the field the weak points lean to, or "scattered" if they don't lean. */
-function sideOf(weak: number[][], all: number[][]): Side {
+export function sideOf(weak: number[][], all: number[][]): Side {
   const mean = (points: number[][], axis: number) => points.reduce((sum, p) => sum + p[axis], 0) / points.length;
   const extent = (axis: number) => {
     const values = all.map((p) => p[axis]);

@@ -42,6 +42,13 @@ SAMPLE_SCALES_M = (10, 20)
 HISTORY_PERIOD_DAYS = 15
 HISTORY_MAX_DAYS = 366
 HISTORY_MIN_CLEAR_SHARE = 0.5  # below this, clouds decide a period's value more than the crop does
+RAINFALL_COLLECTION = "UCSB-CHG/CHIRPS/DAILY"
+RAINFALL_SCALE_M = 5566
+RAINFALL_WINDOW_DAYS = 90
+RAINFALL_NORMAL_FROM = 2001
+DRYNESS_WINDOWS_DAYS = (30, 60, 90)  # wider only when clouds hide the field
+DRYNESS_PAST_FROM = 2019  # Sentinel-2 surface data over India is sparse before this
+DRYNESS_MIN_PAST_YEARS = 3  # fewer clear years can't say what is usual for a spot
 
 
 class AnalysisError(HTTPException):
@@ -62,6 +69,10 @@ class HistoryRequest(BaseModel):
     geometry: dict[str, Any]
     start_date: date
     end_date: date | None = None
+
+
+class DrynessRequest(BaseModel):
+    geometry: dict[str, Any]
 
 
 class DatesRequest(BaseModel):
@@ -330,6 +341,122 @@ def field_history(request: HistoryRequest) -> dict[str, Any]:
         clear = (stats.get("ndvi_count") or 0) >= full_count * HISTORY_MIN_CLEAR_SHARE
         result.append({"from": a.isoformat(), "to": b.isoformat(), "ndvi": round(mean, 3) if clear and mean is not None else None})
     return {"periods": result}
+
+
+def _same_date_in(day: date, years_back: int) -> date:
+    try:
+        return day.replace(year=day.year - years_back)
+    except ValueError:  # 29 February
+        return day.replace(year=day.year - years_back, day=28)
+
+
+def _moisture_image(region: ee.Geometry, start: date, end: date) -> ee.Image:
+    scenes = ee.ImageCollection(S2_COLLECTION).filterBounds(region).filterDate(start.isoformat(), end.isoformat())
+    empty = ee.Image([ee.Image().float(), ee.Image().float()]).rename(["ndmi", "ndvi"])
+    return ee.Image(ee.Algorithms.If(scenes.size().gt(0), add_indices(build_composite(scenes)).select(["ndmi", "ndvi"]), empty))
+
+
+def _window_moisture(region: ee.Geometry, scale: int, start: date, end: date) -> ee.Feature:
+    reducer = ee.Reducer.mean().combine(ee.Reducer.count(), sharedInputs=True)
+    return ee.Feature(None, _moisture_image(region, start, end).reduceRegion(reducer=reducer, geometry=region, scale=scale, maxPixels=int(1e8), bestEffort=False))
+
+
+def _clear_moisture(stats: dict[str, Any], full_count: float) -> dict[str, float] | None:
+    if (stats.get("ndmi_count") or 0) < full_count * HISTORY_MIN_CLEAR_SHARE or stats.get("ndmi_mean") is None:
+        return None
+    return {"ndmi": round(stats["ndmi_mean"], 3), "ndvi": round(stats["ndvi_mean"], 3)}
+
+
+def _rainfall(region: ee.Geometry) -> dict[str, Any] | None:
+    """Last 90 days of rain with data, against the same dates in past years. None if it can't be read."""
+    today = datetime.now(timezone.utc).date()
+    daily = ee.ImageCollection(RAINFALL_COLLECTION)
+    latest_ms = daily.filterDate((today - timedelta(days=150)).isoformat(), (today + timedelta(days=1)).isoformat()).aggregate_max("system:time_start").getInfo()
+    if latest_ms is None:
+        return None
+    last = datetime.fromtimestamp(latest_ms / 1000, tz=timezone.utc).date()
+    first = last - timedelta(days=RAINFALL_WINDOW_DAYS - 1)
+    point = region.centroid(maxError=1)
+
+    def total(years_back: int) -> ee.Feature:
+        start = _same_date_in(first, years_back)
+        end = _same_date_in(last, years_back) + timedelta(days=1)
+        rain = daily.filterDate(start.isoformat(), end.isoformat()).select("precipitation").sum()
+        return ee.Feature(None, rain.reduceRegion(reducer=ee.Reducer.first(), geometry=point, scale=RAINFALL_SCALE_M))
+
+    rows = ee.FeatureCollection([total(n) for n in range(last.year - RAINFALL_NORMAL_FROM + 1)]).getInfo()["features"]
+    amounts = [row["properties"].get("first", row["properties"].get("precipitation")) for row in rows]
+    past = [a for a in amounts[1:] if a is not None]
+    if amounts[0] is None or not past:
+        return None
+    return {"from": first.isoformat(), "to": last.isoformat(), "mm": round(amounts[0]), "normal_mm": round(sum(past) / len(past))}
+
+
+@app.post("/api/dryness")
+def dryness(request: DrynessRequest) -> dict[str, Any]:
+    polygon = validate_polygon(request.geometry)
+    _ensure_earth_engine()
+    region = to_ee_geometry(polygon)
+    today = datetime.now(timezone.utc).date()
+    end = today + timedelta(days=1)
+
+    try:
+        area_m2 = region.area(maxError=1).getInfo()
+        scale = choose_scale(area_m2)
+        full_count = area_m2 / (scale * scale)
+
+        current = None
+        days = DRYNESS_WINDOWS_DAYS[0]
+        for days in DRYNESS_WINDOWS_DAYS:
+            current = _clear_moisture(_window_moisture(region, scale, today - timedelta(days=days), end).getInfo()["properties"], full_count)
+            if current:
+                break
+        if not current:
+            raise AnalysisError(404, "no_clear_pixels", f"This field had no cloud-free view in the last {days} days.")
+
+        start = today - timedelta(days=days)
+        years = list(range(today.year - 1, DRYNESS_PAST_FROM - 1, -1))
+        windows = [_window_moisture(region, scale, _same_date_in(start, today.year - y), _same_date_in(end, today.year - y)) for y in years]
+        rows = ee.FeatureCollection(windows).getInfo()["features"] if windows else []
+        past = [{"year": y, **moisture} for y, row in zip(years, rows) if (moisture := _clear_moisture(row["properties"], full_count))]
+
+        # each spot against the same spot in past clear years, so the map and answer belong to this field
+        now = _moisture_image(region, start, end).select("ndmi")
+        bands = now
+        if len(past) >= DRYNESS_MIN_PAST_YEARS:
+            usual = ee.ImageCollection([_moisture_image(region, _same_date_in(start, today.year - p["year"]), _same_date_in(end, today.year - p["year"])).select("ndmi") for p in past]).median()
+            bands = now.addBands(now.subtract(usual).rename("change"))
+        samples = bands.sample(region=region, scale=scale, geometries=True).limit(MAX_SAMPLE_POINTS).getInfo()["features"]
+        features = [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [round(c, 6) for c in f["geometry"]["coordinates"]]},
+                "properties": {k: round(v, 4) for k, v in f["properties"].items() if v is not None},
+            }
+            for f in samples
+        ]
+    except AnalysisError:
+        raise
+    except Exception as exc:
+        raise _earth_engine_failure(exc) from exc
+
+    try:
+        rain = _rainfall(region)
+    except Exception:
+        # the field's own moisture still stands without rainfall
+        logger.exception("Rainfall lookup failed")
+        rain = None
+
+    return {
+        "from": start.isoformat(),
+        "to": today.isoformat(),
+        "current": current,
+        "past": past,
+        "rain": rain,
+        "features": features,
+        "sample_scale_m": scale,
+        "boundary": polygon,
+    }
 
 
 @app.post("/api/analyze-dates")

@@ -159,7 +159,7 @@ export type SatelliteProblem = Bi & { retry?: boolean; code?: string };
 const TEMPORARY = new Set(["earth_engine_unavailable", "earth_engine_error"]);
 
 /** Call the satellite service. Throws a bilingual message the screen can show as is. */
-export async function satelliteRequest<T>(path: "analyze" | "analyze-dates" | "field-history", body: unknown, signal: AbortSignal): Promise<T> {
+export async function satelliteRequest<T>(path: "analyze" | "analyze-dates" | "field-history" | "dryness", body: unknown, signal: AbortSignal): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api/satellite/${path}`, {

@@ -16,6 +16,7 @@ import {
 import { useStore } from "@/lib/store";
 import type { SchemeCategory } from "@/lib/types";
 import { Badge, Button, Card, Empty, PageHeader, cx, inputCls, statusTone } from "@/components/ui";
+import { DrynessEntry } from "@/components/satellite/FieldDryness";
 import { Input } from "@/components/voice";
 import {
   evaluateSchemeEligibility,
@@ -114,6 +115,8 @@ export default function Schemes() {
           "तुमची जमीन, पिके व नोंदीनुसार थेट लागू होणाऱ्या योजना. पात्रता तपासा व अर्ज करा."
         )}
       />
+
+      {account?.role === "farmer" && <DrynessEntry />}
 
       {/* Search Input */}
       <div className="relative">
