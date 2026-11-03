@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Calculator, ChevronRight, Trash2 } from "lucide-react";
+import { Calculator, ChevronRight, Store, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { seedGuides } from "@/lib/data";
 import { calc } from "@/components/CostCalculator";
@@ -29,6 +29,16 @@ export default function Business() {
           "म्हणजे तुमच्या पिकापासून लोक जास्त पैसे देतील असे उत्पादन बनवणे. लहान सुरुवात करा, स्थानिक ग्राहकांकडून चाचणी घ्या, मग वाढवा.",
         )}
       </Card>
+
+      <Link href={state.enterprise.village ? "/business/discover" : "/business/village"} className="mt-3 block rounded-3xl bg-gradient-to-br from-leaf-700 to-leaf-900 p-4 text-white">
+        <p className="flex items-center gap-2 text-xl font-bold">
+          <Store size={22} aria-hidden="true" /> {l("Gaon Tithe Udyojak", "गाव तिथे उद्योजक")}
+        </p>
+        <p className="mt-1 text-[15px] text-white/90">{l("Which business could work in your village? Tell us what your village has. See 3 ideas, the reasons, and the money.", "तुमच्या गावात कोणता व्यवसाय चालू शकतो? गावात काय आहे ते सांगा. ३ कल्पना, त्यामागची कारणे व पैशांचा हिशोब पाहा.")}</p>
+        <p className="mt-3 flex min-h-12 items-center justify-center gap-1 rounded-xl bg-white font-bold text-leaf-900">
+          {state.enterprise.village ? l("See my village’s ideas", "माझ्या गावाच्या कल्पना पाहा") : l("Find a business for my village", "माझ्या गावासाठी व्यवसाय शोधा")} <ChevronRight size={18} />
+        </p>
+      </Link>
 
       <SectionTitle>{l("Business guides", "व्यवसाय मार्गदर्शक")}</SectionTitle>
       <div className="space-y-2">

@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Camera,
   CheckCircle2,
+  ChevronRight,
   HelpCircle,
   Lightbulb,
   Loader2,
@@ -19,6 +20,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import CropCheckFields from "@/components/satellite/CropCheckFields";
 import { Card, Badge, PageHeader, Button, DemoBadge, cx } from "@/components/ui";
 
 const CROP_TRANSLATIONS: Record<string, { en: string; mr: string }> = {
@@ -420,6 +422,9 @@ export default function CropCheckPage() {
           "AI निदानासाठी बाधित पानाचा १ स्पष्ट फोटो काढा. नोंदीसाठी दुसरा ऐच्छिक फोटो जोडू शकता."
         )}
       />
+
+      {/* Satellite farm analysis */}
+      <CropCheckFields />
 
       {/* Guide Banner */}
       <div className="flex items-center justify-between rounded-2xl border border-leaf-700/30 bg-leaf-50 p-3.5 shadow-sm">

@@ -84,3 +84,6 @@ backend/models/*.h5
 *.z04
 *.z05
 *.z06
+# satellite service virtualenv
+backend/.venv/
+__pycache__/

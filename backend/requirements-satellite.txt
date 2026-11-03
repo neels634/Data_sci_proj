@@ -1,0 +1,6 @@
+# Satellite farm analysis service (main.py). Separate from requirements.txt, which is for the
+# disease model in app/main.py and installs TensorFlow.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+earthengine-api==1.7.51
+geojson==3.3.0

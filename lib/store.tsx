@@ -5,6 +5,7 @@
  * click-through survives page reloads. "Reset" restores the seed. There is no backend: this
  * stands in for the Supabase tables described in the PRD.
  */
+import { EMPTY_RECORD, type EnterpriseRecord } from "./enterprise";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   CURRENT_BUYER_ID,
@@ -56,6 +57,8 @@ interface AppState {
   /** per-account data, keyed by account id */
   bookmarksBy: Record<string, string[]>;
   trackerBy: Record<string, Record<string, TrackerStatus>>;
+  /** Gaon Tithe Udyojak: each account's village, entrepreneur profile and saved business ideas */
+  enterpriseBy: Record<string, EnterpriseRecord>;
   listings: Listing[];
   lots: Lot[];
   offers: Offer[];
@@ -83,6 +86,7 @@ const initialState = (): AppState => {
   schemes: seedSchemes,
   bookmarksBy: { [SEED_FARMER_ACCOUNT]: ["pm-kisan"] },
   trackerBy: { [SEED_FARMER_ACCOUNT]: { "pm-kisan": "Applied" } },
+  enterpriseBy: {},
   listings: seedListings,
   lots: seedLots,
   offers: seedOffers,
@@ -388,6 +392,12 @@ function useAppStore() {
           later(bi("Crop updated", "पीक अद्ययावत केले"));
           return { ...s, farmCrops: s.farmCrops.map((c) => (c.id === id ? { ...c, ...patch } : c)) };
         }),
+      /** saved as the farmer types, so no "updated" message */
+      saveEnterprise: (patch: Partial<EnterpriseRecord>) =>
+        setState((s) => ({ ...s, enterpriseBy: { ...s.enterpriseBy, [who(s)]: { ...EMPTY_RECORD, ...s.enterpriseBy[who(s)], ...patch } } })),
+      /** refreshed in the background of the record screen, so no "updated" message */
+      saveFieldHistory: (id: string, fieldHistory: FarmCrop["fieldHistory"]) =>
+        setState((s) => ({ ...s, farmCrops: s.farmCrops.map((c) => (c.id === id && c.owner === s.sessionId ? { ...c, fieldHistory } : c)) })),
       /** planned → growing, with the sowing recorded in the log */
       markSown: (id: string, date: string) =>
         setState((s) => {
@@ -521,6 +531,7 @@ function useAppStore() {
       ...state,
       bookmarks: state.bookmarksBy[key] ?? [],
       tracker: state.trackerBy[key] ?? {},
+      enterprise: state.enterpriseBy[key] ?? EMPTY_RECORD,
       activity: state.activityBy[key] ?? [],
       // My Farm: only the signed-in farmer's own crops and their records
       myFarmCrops: state.farmCrops.filter((c) => c.owner === sessionId),
