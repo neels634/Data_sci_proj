@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, Landmark, MessagesSquare, ShoppingBasket, Sprout, ScanEye } from "lucide-react";
+import { Briefcase, Landmark, MessagesSquare, Scale, Sprout, ScanEye } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { getCrop } from "@/lib/crops";
 import { todayISO, todayTasks } from "@/lib/lifecycle";
@@ -9,7 +9,7 @@ import { todayISO, todayTasks } from "@/lib/lifecycle";
 /** Farmer home: main options, including Crop Check and the Krishi Mitra farming assistant. */
 export default function FarmerHome() {
   const { state, l, isMine } = useStore();
-  // a small count on Sell when buyers have sent offers, so they aren't missed
+  // a small count on Mandi Mitra when buyers have sent offers, so they aren't missed
   const offers = state.listings.filter((x) => isMine(x) && x.status === "Offer received").length;
   // My Farm: tasks due today (and overdue ones) across the farmer's crops
   const farmTasks = todayTasks(state.myFarmCrops, getCrop, state.myTaskStates, todayISO()).length;
@@ -17,7 +17,7 @@ export default function FarmerHome() {
   const tiles: { href: string; label: string; icon: React.ReactNode; tone: string; wide?: boolean; badge?: number; badgeLabel?: string }[] = [
     { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={36} strokeWidth={1.75} />, tone: "bg-emerald-100 text-emerald-800", wide: true },
     { href: "/schemes", label: l("Schemes", "योजना"), icon: <Landmark size={44} strokeWidth={1.75} />, tone: "bg-leaf-100 text-leaf-700" },
-    { href: "/sell", label: l("Sell produce", "माल विका"), icon: <ShoppingBasket size={44} strokeWidth={1.75} />, tone: "bg-soil-100 text-soil", badge: offers, badgeLabel: l(`${offers} new offers`, `${offers} नवीन ऑफर`) },
+    { href: "/mandi", label: l("Mandi Mitra", "मंडी मित्र"), icon: <Scale size={44} strokeWidth={1.75} />, tone: "bg-soil-100 text-soil", badge: offers, badgeLabel: l(`${offers} new offers`, `${offers} नवीन ऑफर`) },
     { href: "/business", label: l("Business", "व्यवसाय"), icon: <Briefcase size={44} strokeWidth={1.75} />, tone: "bg-gold-100 text-gold" },
     { href: "/crops", label: l("My Farm", "माझी शेती"), icon: <Sprout size={44} strokeWidth={1.75} />, tone: "bg-[#ece4f3] text-[#5d3f7a]", badge: farmTasks, badgeLabel: l(`${farmTasks} farm tasks today`, `आज शेतीची ${farmTasks} कामे`) },
     { href: "/ask", label: l("Ask Krishi Mitra", "कृषी मित्राला विचारा"), icon: <MessagesSquare size={36} strokeWidth={1.75} />, tone: "bg-leaf-700 text-white", wide: true },

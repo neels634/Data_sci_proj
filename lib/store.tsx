@@ -343,6 +343,12 @@ function useAppStore() {
           };
         }),
       deletePlan: (id: string) => setState((s) => ({ ...s, plans: s.plans.filter((p) => p.id !== id) })),
+      /** record the market a farmer chose in Mandi Mitra */
+      planSale: (text: Bi) =>
+        setState((s) => {
+          later(bi("Plan saved", "योजना जतन केली"));
+          return { ...s, activityBy: log(s, text) };
+        }),
       requestSupport: (topic: Text) =>
         setState((s) => {
           later(bi("Request sent to the field coordinator", "विनंती क्षेत्र समन्वयकाला पाठवली"));

@@ -48,6 +48,17 @@ Try this path: log in as the **Farmer** → Sell → New listing → log out, lo
 listings → Create pooled lot → log in as the **Buyer** → open the lot → Send offer → log in as the
 **Farmer** → Sell → open the listing → Accept.
 
+## Mandi Mitra (where, when and how to sell)
+
+`/mandi` compares nearby markets by what the farmer keeps: market price (adjusted for grade) minus
+transport, loading and market charges, and produce lost on the way. It also advises selling now,
+storing, or pooling through a Gaon Mandi Mitra, and the farmer always makes the final choice.
+
+**All prices, arrivals, distances and rates in `lib/market.ts` are sample figures, not real market
+data, and the screen says so.** They cover soybean, tomato and onion across Phaltan, Lonand, Satara,
+Baramati and Pune. To go live, feed `MARKETS` from a real source such as AGMARKNET; the calculations
+stay the same.
+
 ## Demo-data rules followed
 
 - All people, buyers, prices, enterprises and figures are fictional and labelled as demo data.

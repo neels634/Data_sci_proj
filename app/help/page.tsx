@@ -10,10 +10,17 @@ import { VoiceCheck } from "@/components/speech";
 
 const TERMS = [
   [
-    bi("Mandi Mitra", "मंडी मित्र"),
+    bi("Gaon Mandi Mitra", "गाव मंडी मित्र"),
     bi(
       "A trained person from your village who helps you find buyers, pool produce and arrange transport, for a fee shown upfront.",
       "तुमच्या गावातील प्रशिक्षित व्यक्ती, जी आधी सांगितलेल्या शुल्कात खरेदीदार शोधणे, माल एकत्र करणे व वाहतूक व्यवस्था करण्यास मदत करते.",
+    ),
+  ],
+  [
+    bi("Mandi Mitra screen", "मंडी मित्र स्क्रीन"),
+    bi(
+      "Compares nearby markets and shows what you keep after transport and other costs, so you can decide where and when to sell.",
+      "जवळच्या बाजारांची तुलना करून वाहतूक व इतर खर्चानंतर किती पैसे मिळतील ते दाखवते, ज्यामुळे कुठे व केव्हा विकायचे ते ठरवता येते.",
     ),
   ],
   [
