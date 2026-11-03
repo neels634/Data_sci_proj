@@ -1,54 +1,64 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from ..models import HealthResponse
 from ..model_service import model_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint with dynamic configuration support."""
+    """Health check endpoint reflecting actual model availability."""
+    if not model_service.is_healthy():
+        raise HTTPException(
+            status_code=503,
+            detail="Model service unavailable",
+            headers={"Retry-After": "30"},
+        )
+    
     try:
-        is_healthy = model_service.is_healthy()
-        
-        if not is_healthy:
-            raise HTTPException(status_code=503, detail="Model service unavailable")
-        
         model_info = model_service.get_model_info()
-        
         return HealthResponse(
             status="ok",
             model=model_info.get("name", "Unknown"),
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             model_loaded=model_service.model_loaded,
-            total_classes=model_info.get("total_classes", 0)
+            total_classes=model_info.get("total_classes", 0),
         )
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        logger.error("Health check error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Health check failed")
 
 
 @router.get("/model/info")
 async def get_model_info():
     """Get comprehensive information about the loaded model and configuration."""
+    if not model_service.is_healthy():
+        raise HTTPException(
+            status_code=503,
+            detail="Model service unavailable",
+            headers={"Retry-After": "30"},
+        )
     try:
-        if not model_service.is_healthy():
-            raise HTTPException(status_code=503, detail="Model service unavailable")
-        
         return model_service.get_model_info()
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get model info: {str(e)}")
+        logger.error("Failed to get model info: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get model info")
 
 
 @router.get("/model/classes")
 async def get_model_classes():
     """Get all supported disease classes with detailed information."""
+    if not model_service.is_healthy():
+        raise HTTPException(
+            status_code=503,
+            detail="Model service unavailable",
+            headers={"Retry-After": "30"},
+        )
+    
     try:
-        if not model_service.is_healthy():
-            raise HTTPException(status_code=503, detail="Model service unavailable")
-        
         from ..config_manager import config_manager
         
         classes_info = []
@@ -93,6 +103,6 @@ async def get_model_classes():
                 for name, treatment_type in config_manager.treatment_types.items()
             }
         }
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get classes info: {str(e)}")
+        logger.error("Failed to get classes info: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get classes info")

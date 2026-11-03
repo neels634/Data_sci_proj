@@ -111,15 +111,15 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         return response
     
     def _get_client_ip(self, request: Request) -> str:
-        """Get client IP with proxy support."""
-        # Check for forwarded headers
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-        
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
+        """Get client IP, inspecting forwarded headers only when behind a configured trusted proxy."""
+        if getattr(settings, "behind_trusted_proxy", False):
+            forwarded_for = request.headers.get("X-Forwarded-For")
+            if forwarded_for:
+                return forwarded_for.split(",")[0].strip()
+            
+            real_ip = request.headers.get("X-Real-IP")
+            if real_ip:
+                return real_ip
         
         return request.client.host if request.client else "unknown"
     

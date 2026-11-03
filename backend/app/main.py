@@ -23,6 +23,7 @@ from .routers.predict import limiter
 from .security import (
     SecurityAuditLogger,
     ResponseCache,
+    SecurityHeadersMiddleware,
 )
 from .performance import (
     AsyncTaskManager,
@@ -80,8 +81,13 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting Plant Disease Detection API...")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
-    logger.info(f"Security features: Enabled")
-    logger.info(f"Performance monitoring: Enabled")
+    if settings.api_key:
+        logger.info("API Key Auth: Configured")
+    else:
+        logger.info("API Key Auth: Not configured (open demo mode)")
+    if settings.is_production and "*" in settings.cors_origins_list:
+        logger.warning("CORS configuration contains wildcard '*' in production mode")
+    logger.info("Rate Limiting: Configured via slowapi limiter")
     
     try:
         # Initialize security components
@@ -140,6 +146,7 @@ app = FastAPI(
 )
 
 # Add middleware
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add CORS middleware

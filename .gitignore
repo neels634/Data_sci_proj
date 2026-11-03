@@ -42,3 +42,45 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Python caches & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+ENV/
+env/
+
+# Python testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & security audit
+*.log
+security_audit.log
+backend/security_audit.log
+app.log
+
+# Frontend build & caches
+frontend/dist/
+frontend/node_modules/
+crop-check/dist/
+crop-check/node_modules/
+
+# Local model weights & archives (large binaries)
+backend/models/*.onnx
+backend/models/*.keras
+backend/models/*.h5
+*.zip
+*.z01
+*.z02
+*.z03
+*.z04
+*.z05
+*.z06
