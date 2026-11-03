@@ -1,19 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, Landmark, MessagesSquare, ShoppingBasket, Users, ScanEye } from "lucide-react";
+import { Briefcase, Landmark, MessagesSquare, Scale, Users, ScanEye } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 /** Farmer home: main options, including Crop Check and the Krishi Mitra farming assistant. */
 export default function FarmerHome() {
   const { state, l, isMine } = useStore();
-  // a small count on Sell when buyers have sent offers, so they aren't missed
+  // a small count on Mandi Mitra when buyers have sent offers, so they aren't missed
   const offers = state.listings.filter((x) => isMine(x) && x.status === "Offer received").length;
 
   const tiles = [
     { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={36} strokeWidth={1.75} />, tone: "bg-emerald-100 text-emerald-800", wide: true },
     { href: "/schemes", label: l("Schemes", "योजना"), icon: <Landmark size={44} strokeWidth={1.75} />, tone: "bg-leaf-100 text-leaf-700" },
-    { href: "/sell", label: l("Sell produce", "माल विका"), icon: <ShoppingBasket size={44} strokeWidth={1.75} />, tone: "bg-soil-100 text-soil", badge: offers },
+    { href: "/mandi", label: l("Mandi Mitra", "मंडी मित्र"), icon: <Scale size={44} strokeWidth={1.75} />, tone: "bg-soil-100 text-soil", badge: offers },
     { href: "/business", label: l("Business", "व्यवसाय"), icon: <Briefcase size={44} strokeWidth={1.75} />, tone: "bg-gold-100 text-gold" },
     { href: "/women", label: l("Women & SHG", "महिला व बचत गट"), icon: <Users size={44} strokeWidth={1.75} />, tone: "bg-[#ece4f3] text-[#5d3f7a]" },
     { href: "/ask", label: l("Ask Krishi Mitra", "कृषी मित्राला विचारा"), icon: <MessagesSquare size={36} strokeWidth={1.75} />, tone: "bg-leaf-700 text-white", wide: true },

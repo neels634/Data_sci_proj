@@ -14,7 +14,7 @@ export default function Sell() {
 
   return (
     <div>
-      <PageHeader back="/home" title={l("Sell your produce", "तुमचा माल विका")} sub={l("List a crop or ask your Mandi Mitra for help", "पीक नोंदवा किंवा मंडी मित्राची मदत घ्या")} />
+      <PageHeader back="/mandi" title={l("My listings", "माझ्या नोंदी")} sub={l("List a crop, ask a Gaon Mandi Mitra for help, and see buyer offers.", "पीक नोंदवा, गाव मंडी मित्राची मदत घ्या आणि खरेदीदारांच्या ऑफर पाहा.")} />
       <LinkButton href="/sell/new" full>
         <Plus size={20} /> {l("New listing", "नवीन नोंद")}
       </LinkButton>

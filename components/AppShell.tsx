@@ -18,6 +18,7 @@ import {
   UserCircle,
   RotateCcw,
   ScanEye,
+  Scale,
   ShoppingBasket,
   Sprout,
   Store,
@@ -62,7 +63,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           { href: "/home", label: l("Home", "मुख्यपृष्ठ"), icon: <Home size={22} />, match: ["/activity"] },
           { href: "/crop-check", label: l("Crop Check", "पीक तपासणी"), icon: <ScanEye size={22} /> },
           { href: "/schemes", label: l("Schemes", "योजना"), icon: <Landmark size={22} /> },
-          { href: "/sell", label: l("Sell", "विक्री"), icon: <ShoppingBasket size={22} /> },
+          { href: "/mandi", label: l("Mandi Mitra", "मंडी मित्र"), icon: <Scale size={22} />, match: ["/sell"] },
           { href: "/business", label: l("Business", "व्यवसाय"), icon: <Briefcase size={22} />, match: ["/calculator"] },
         ]
       : state.role === "mitra"
