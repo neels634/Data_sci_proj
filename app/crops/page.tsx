@@ -14,6 +14,8 @@ import { SpeakButton } from "@/components/speech";
 import { buildBriefing } from "@/lib/farm-briefing";
 import { useSpeech } from "@/lib/speech";
 import { Card, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+import { SeasonCosts } from "@/components/costs/season";
+import { AddExpenseSheet } from "@/components/costs/money";
 
 type Tab = "mine" | "library";
 
@@ -59,6 +61,7 @@ function MyCrops() {
   const { state, l, tx, num, today, account } = useFarm();
   const [log, setLog] = useState<{ fc: FarmCrop; o: TaskOccurrence } | null>(null);
   const [showPast, setShowPast] = useState(false);
+  const [addingCost, setAddingCost] = useState(false);
   const crops = state.myFarmCrops;
   // tasks need each crop's stages, so load the farm's crops (a few small files)
   const lib = useCrops(crops.map((c) => c.cropId));
@@ -95,6 +98,11 @@ function MyCrops() {
         )}
       </Card>
 
+      <SeasonCosts crops={crops} nameOf={(fc) => `${tx(lib.get(fc.cropId)?.name) || fc.cropId}${tx(fc.plotName) ? ` · ${tx(fc.plotName)}` : ""}`} />
+      <Link href="/crops/rates" className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-bold text-leaf-700">
+        {l("My local rates (for cost estimates)", "माझे स्थानिक दर (खर्च अंदाजासाठी)")}
+      </Link>
+
       <SectionTitle>{l("My crops", "माझी पिके")}</SectionTitle>
       <div className="space-y-3">
         {current.map((fc) => (
@@ -123,6 +131,14 @@ function MyCrops() {
       )}
 
       {log && <LogActivitySheet fc={log.fc} initial={{ type: log.o.task.type, linkedTaskId: log.o.key }} onClose={() => setLog(null)} />}
+      <button
+        type="button"
+        onClick={() => setAddingCost(true)}
+        className="fixed bottom-24 right-[max(1rem,calc(50%-14rem+1rem))] z-30 flex min-h-14 items-center gap-2 rounded-full bg-leaf-700 px-5 text-lg font-bold text-white shadow-lg active:scale-95"
+      >
+        <Plus size={22} /> {l("Expense", "खर्च")}
+      </button>
+      {addingCost && <AddExpenseSheet crops={current} nameOf={(fc) => `${tx(lib.get(fc.cropId)?.name) || fc.cropId} · ${tx(fc.plotName)}`} onClose={() => setAddingCost(false)} />}
     </div>
   );
 }

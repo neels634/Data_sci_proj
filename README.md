@@ -44,7 +44,7 @@ To maintain product integrity, crop capabilities are partitioned into distinct t
 | Capability / Module | Status | Privacy & Data Storage | Details |
 |---|---|---|---|
 | **AI Crop Check (`/crop-check`)** | **REAL LOCAL MODEL (When Present)** | **Sent to Backend** | Uploaded leaf close-up photos are sent via HTTP POST to the local FastAPI backend (`/api/predict`). Photos are not stored on a public server. |
-| **Plot Stress Timeline (`/crops/my/[id]`)** | **REAL LOCAL DATA** | **Device LocalStorage** | Farmer observations (notes, dates, and canvas-compressed photo thumbnails) are stored strictly in browser `localStorage` (`udyamsetu-state-v7`). Photos never leave the device. |
+| **Plot Stress Timeline (`/crops/my/[id]`)** | **REAL LOCAL DATA** | **Device LocalStorage** | Farmer observations (notes, dates, and canvas-compressed photo thumbnails) are stored strictly in browser `localStorage` (`udyamsetu-state-v8`). Photos never leave the device. |
 | **Case Summary Generator** | **REAL CLIENT LOGIC** | **Device LocalStorage** | Generates copyable plain text for WhatsApp/SMS with plot metadata and chronological stress logs. Does not embed photos. |
 | **Area-level Signal** | **DEMO PLACEHOLDER** | **Client State** | Visibly marked with a `<DemoBadge />`. Neutral illustrative text without numbers or color scales to prevent confusion with official survey damage indices. |
 | **Mandi Mitra (`/mandi`)** | **DEMO DATA** | **Client Seed Data** | Wholesale prices, distances, and rates in `lib/market.ts` are sample figures marked as demo data. |
@@ -158,6 +158,36 @@ listings can't be pooled, and a lot never mixes crop, type or grade. `npm run ch
 grade data. Saved data from before grading moves over as "not graded" listings waiting for a check; use
 **Reset app data** to load the new demo listings.
 
+## Expenses & profit (My Farm)
+
+- **Estimate when adding a crop.** The last step of "Add my crop" shows the estimated cost for the
+  farmer's area (acre, hectare or guntha; 1 ha = 2.471 acres, 1 acre = 40 guntha) with a bar by cost
+  type, each line (qty × rate = amount), the expected yield and the **break-even price** (cash cost ÷
+  expected yield). The farmer can change any line, remove it, add their own, and set a budget. The
+  estimate is saved with the crop (template id + changes) so it doesn't move when templates change.
+- **How estimates work.** `lib/costs/templates.ts` has per-acre lines for onion, tomato, soybean,
+  cotton, tur, chana, jowar, wheat, sugarcane, turmeric, marigold and pomegranate (set-up + yearly
+  bahar), and a general estimate per crop category for every other crop. `lib/costs/estimate.ts` adds
+  them up with the farmer's local rates. **All figures are draft placeholders to verify** against CACP
+  cost-of-cultivation reports for Maharashtra and the state agricultural universities, and to be
+  reviewed by a Mitra / KVK; the app labels them "estimate" with source and year. Spraying is costed as
+  rounds × cost per round, never products and doses.
+- **Local rates.** My Farm → "My local rates" (`/crops/rates`): labour per day, tractor per hour,
+  rotavator, manure trolley, electricity, diesel, bags, crates, vehicle per km. Grey numbers are draft
+  defaults; typed rates change every estimate at once.
+- **Expenses tab** on each crop: spent vs estimate (green / amber / red with an icon), estimated cost
+  still to come, per acre, cash vs own work, budget, breakdown by cost type or growth stage, the
+  expense list by month with filters, and a quick add sheet (workers × days × wage, hours × rate,
+  bags/kg × price, bill photo). Logging an activity can also record its cost.
+- **Sales and profit.** "Record sale" (prefilled from an accepted Mandi Mitra offer) → income, net
+  profit / loss, with own work, per acre, cost per quintal and actual vs estimated break-even. Before
+  selling, "What price do I need?" shows the break-even next to the nearest market's rate. Orchards
+  keep their set-up cost apart and show the years to earn it back.
+- **Whole farm** on My Farm home: this season's (kharif / rabi / summer / year) spent, income and net,
+  per crop and per cost type, whole-farm expenses shared by area, share summary and CSV download.
+- **Privacy.** Money records stay in this browser; bill photos are compressed to ≤ 300 KB and kept in
+  IndexedDB. Nothing is sent to a server. `npm run check:costs` checks the engine and every template.
+
 ## Today's rates and the best market
 
 - **आजचे भाव / Today's rates** (`/mandi/rates`): pick a crop from the same 10-crop grid as "I want to
@@ -239,7 +269,7 @@ login of its own and spends your Earth Engine quota, so don't expose it publicly
 - `lib/types.ts` — data model (mirrors the PRD entities)
 - `lib/data.ts` — seed / demo data
 - `lib/store.tsx` — in-memory store and all actions (stands in for the future Supabase backend).
-  Saved to localStorage as `udyamsetu-state-v7`; older data (v4–v6) is upgraded once, keeping accounts.
+  Saved to localStorage as `udyamsetu-state-v8`; older data (v4–v7) is upgraded once, keeping accounts.
 - `lib/crops.ts` — Crop Library: 8 crops with seasons, stages, tasks and care notes. General guidance
   only, marked "Not yet verified" until an agronomist reviews it (no chemical names with doses).
 - `lib/speech.ts`, `lib/marathi-numbers.ts`, `components/speech.tsx` — read-aloud (see below).

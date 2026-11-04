@@ -1,5 +1,8 @@
 "use client";
 
+import { AmountHelper } from "@/components/costs/money";
+import { parseMoney } from "@/components/costs";
+import type { CostCategory } from "@/lib/costs/categories";
 import { useEffect, useState } from "react";
 import { Bug, Check, ChevronDown, CircleDot, Droplets, Eye, FlaskConical, Scissors, ShieldCheck, Shovel, SkipForward, Sprout, TriangleAlert, Wheat, X } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -238,6 +241,19 @@ export function SprayBanner({ status }: { status: SprayStatus | null }) {
 const TYPES: ActivityType[] = ["irrigation", "fertiliser", "pesticide", "fungicide", "weeding", "observation", "sowing", "transplanting", "harvest", "other"];
 const SPRAY: ActivityType[] = ["pesticide", "fungicide"];
 const PRODUCT: ActivityType[] = ["fertiliser", "pesticide", "fungicide"];
+/** which cost category an activity's expense goes to */
+const COST_OF: Record<ActivityType, CostCategory> = {
+  sowing: "labour",
+  transplanting: "labour",
+  irrigation: "irrigation",
+  fertiliser: "fertiliser",
+  pesticide: "plant_protection",
+  fungicide: "plant_protection",
+  weeding: "labour",
+  observation: "other",
+  harvest: "harvest_post",
+  other: "other",
+};
 
 /** Bottom sheet to record what was done on the farm. Never suggests products or doses. */
 export function LogActivitySheet({
@@ -249,7 +265,9 @@ export function LogActivitySheet({
   initial?: { type?: ActivityType; linkedTaskId?: string };
   onClose: () => void;
 }) {
-  const { l, tx, today, logFarmActivity } = useFarm();
+  const { l, tx, today, state, logFarmActivity } = useFarm();
+  const [cost, setCost] = useState("");
+  const [costQty, setCostQty] = useState<{ qty?: number; unit?: string }>({});
   const [type, setType] = useState<ActivityType>(initial?.type ?? "irrigation");
   const [date, setDate] = useState(today);
   const [product, setProduct] = useState("");
@@ -288,7 +306,7 @@ export function LogActivitySheet({
       ...(SPRAY.includes(type) && rei ? { reEntryHours: Number(rei) } : {}),
       ...(initial?.linkedTaskId ? { linkedTaskId: initial.linkedTaskId } : {}),
       notes: clean(notes, 300),
-    });
+    }, parseMoney(cost) > 0 ? { category: COST_OF[type], item: tx(ACTIVITY[type].label), amount: Math.round(parseMoney(cost)), cashPaid: true, ...(costQty.qty ? costQty : {}) } : undefined);
     onClose();
   };
 
@@ -350,6 +368,11 @@ export function LogActivitySheet({
               </div>
             </div>
           )}
+          <div className="space-y-2 rounded-2xl border border-line bg-white p-3">
+            <p className="font-semibold">{l("How much did it cost? (optional)", "किती खर्च झाला? (पर्यायी)")}</p>
+            <AmountHelper key={COST_OF[type]} category={COST_OF[type]} rates={state.myLocalRates} onUse={(a, q) => { setCost(String(a)); setCostQty(q); }} />
+            <Input className={inputCls} inputMode="numeric" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="₹" aria-label={l("Cost in rupees", "खर्च रुपये")} />
+          </div>
           <Field label={l("Notes", "टीप")}>
             <TextArea className={cx(inputCls, "min-h-20 py-2")} value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} />
           </Field>

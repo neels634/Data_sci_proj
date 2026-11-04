@@ -1,6 +1,9 @@
 import type { Bi, Text } from "./i18n";
 import type { FieldHistory, PolygonGeometry } from "./satellite";
 import type { Unit } from "./grades";
+import type { CostCategory } from "./costs/categories";
+import type { CostLine } from "./costs/templates";
+import type { LineOverride } from "./costs/estimate";
 
 export type Role = "farmer" | "mitra" | "buyer" | "admin";
 export type Lang = "en" | "mr";
@@ -382,6 +385,55 @@ export interface FarmCrop {
   cycleStart?: string | null; // this year's pruning / bahar start date
   // seasonal crops with ratoon
   ratoonNumber?: number; // 0 = plant crop, 1 = first ratoon…
+  // cost estimate, saved with the crop so it stays stable if templates change
+  costTemplateId?: string;
+  estimateOverrides?: Record<string, LineOverride>;
+  customCostLines?: CostLine[];
+  /** per acre, in the template's yield unit */
+  expectedYieldOverride?: number;
+  /** optional budget the farmer set for this crop (₹) */
+  budget?: number;
+}
+
+/** money spent on the farm; stays on the phone */
+export interface Expense {
+  id: string;
+  owner: string;
+  /** null = a general farm expense (e.g. pump repair) */
+  farmCropId: string | null;
+  category: CostCategory;
+  item: string;
+  amount: number; // ₹, whole
+  date: string; // YYYY-MM-DD
+  qty?: number;
+  unit?: string;
+  /** false = own work / own machine: valued, not paid */
+  cashPaid: boolean;
+  templateLineId?: string;
+  activityId?: string;
+  /** IndexedDB key of the compressed bill photo */
+  billPhotoId?: string;
+  note?: string;
+  createdAt: string;
+}
+
+/** income from a crop */
+export interface Sale {
+  id: string;
+  owner: string;
+  farmCropId: string;
+  date: string;
+  gradeCode?: string;
+  qty: number;
+  unit: Unit;
+  ratePerUnit: number;
+  /** qty × rate − deductions */
+  amount: number;
+  deductions?: number;
+  marketId?: string;
+  listingId?: string;
+  lotId?: string;
+  note?: string;
 }
 
 export interface FarmActivity {

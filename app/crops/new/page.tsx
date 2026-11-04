@@ -10,6 +10,10 @@ import { regionForDistrict } from "@/lib/regions";
 import { toAsciiDigits } from "@/lib/marathi-numbers";
 import type { CropInfo, FarmCrop, PerennialCrop, SeasonalCrop } from "@/lib/types";
 import { ACTIVITY, useFarm } from "@/components/myfarm/ui";
+import { AREA_NAME, toAcres, type AreaUnit } from "@/lib/costs/categories";
+import { estimate, type LineOverride } from "@/lib/costs/estimate";
+import type { CostLine } from "@/lib/costs/templates";
+import { EstimateActions, EstimateCard, EstimateEditor, LocalRatesSheet, cropTemplate, parseMoney } from "@/components/costs";
 import { Input } from "@/components/voice";
 import { Button, Card, Field, PageHeader, cx, inputCls } from "@/components/ui";
 
@@ -35,12 +39,12 @@ function AddCrop() {
   const crop = useCrop(cropId || null);
 
   const found = q.trim() ? searchCrops(q) : sortPopular(CROP_INDEX, regionForDistrict(account?.district), lang);
-  const labels = [l("Crop", "पीक"), l("Details", "तपशील"), l("Dates", "तारखा")];
+  const labels = [l("Crop", "पीक"), l("Details", "तपशील"), l("Dates", "तारखा"), l("Estimated cost", "अंदाजे खर्च")];
 
   return (
     <div className="pb-28">
       <PageHeader back="/crops" title={l("Add my crop", "माझे पीक जोडा")} sub={labels[step]} />
-      <div className="mb-5 flex items-center justify-center gap-2" aria-label={l(`Step ${step + 1} of 3`, `पायरी ${step + 1} / 3`)}>
+      <div className="mb-5 flex items-center justify-center gap-2" aria-label={l(`Step ${step + 1} of 4`, `पायरी ${step + 1} / ४`)}>
         {labels.map((_, i) => (
           <span key={i} className={cx("h-3 rounded-full transition-all", i === step ? "w-8 bg-leaf-700" : i < step ? "w-3 bg-leaf-600" : "w-3 bg-line")} />
         ))}
@@ -112,7 +116,7 @@ function Footer({ step, setStep, onNext, onSave }: { step: number; setStep: (n: 
       <Button variant="secondary" className="min-h-12 px-4" onClick={() => setStep(step - 1)} aria-label={l("Back", "मागे")}>
         <ArrowLeft size={20} />
       </Button>
-      {step === 1 ? (
+      {step < 3 ? (
         <Button className="min-h-12 flex-1" onClick={onNext}>
           {l("Next", "पुढे")} <ArrowRight size={20} />
         </Button>
@@ -166,27 +170,69 @@ function Preview({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
   );
 }
 
-const common = (plot: string, variety: string, area: string) => ({ variety: variety.trim().slice(0, 40), plotName: plot.trim().slice(0, 40), areaAcres: Number(area) });
+const common = (plot: string, variety: string, acres: number) => ({ variety: variety.trim().slice(0, 40), plotName: plot.trim().slice(0, 40), areaAcres: Math.round(acres * 1000) / 1000 });
 
-function areaError(area: string, l: (en: string, mr: string) => string) {
+function areaError(area: string, unit: AreaUnit, l: (en: string, mr: string) => string) {
   const n = Number(area);
-  if (!area.trim()) return l("Enter the area in acres", "क्षेत्र एकरमध्ये लिहा");
+  if (!area.trim()) return l("Enter the area", "क्षेत्र लिहा");
   if (!/^\d+(\.\d+)?$/.test(area.trim()) || n <= 0) return l("Enter a number greater than 0", "0 पेक्षा मोठा आकडा लिहा");
-  if (n > 100) return l("That is more than 100 acres — please check", "हे 100 एकरपेक्षा जास्त आहे — तपासा");
+  if (toAcres(n, unit) > 100) return l("That is more than 100 acres — please check", "हे 100 एकरपेक्षा जास्त आहे — तपासा");
   return "";
+}
+
+/** what the farmer changed in the estimate while adding the crop */
+interface CostDraft {
+  overrides: Record<string, LineOverride>;
+  customLines: CostLine[];
+  budget: string;
+}
+const NO_COSTS: CostDraft = { overrides: {}, customLines: [], budget: "" };
+const costFields = (crop: CropInfo, fc: FarmCrop, c: CostDraft) => ({
+  costTemplateId: cropTemplate(fc, crop).id,
+  ...(Object.keys(c.overrides).length ? { estimateOverrides: c.overrides } : {}),
+  ...(c.customLines.length ? { customCostLines: c.customLines } : {}),
+  ...(parseMoney(c.budget) > 0 ? { budget: parseMoney(c.budget) } : {}),
+});
+
+/** step 4: estimated cost for this area, editable, with local rates and an optional budget */
+function EstimateStep({ fc, crop, costs, setCosts }: { fc: FarmCrop; crop: CropInfo; costs: CostDraft; setCosts: (c: CostDraft) => void }) {
+  const { l, tx, state } = useFarm();
+  const [editing, setEditing] = useState(false);
+  const [rates, setRates] = useState(false);
+  const template = cropTemplate(fc, crop);
+  const est = estimate({ template, areaAcres: fc.areaAcres, rates: state.myLocalRates, overrides: costs.overrides, customLines: costs.customLines });
+  return (
+    <div className="space-y-4">
+      <EstimateCard est={est} template={template} areaAcres={fc.areaAcres} cropName={tx(crop.name)} perennial={crop.lifecycle === "perennial"}>
+        <EstimateActions onEdit={() => setEditing(true)} onRates={() => setRates(true)} />
+      </EstimateCard>
+      <Field label={l("My budget (optional, ₹)", "माझे बजेट (पर्यायी, ₹)")}>
+        <Input className={inputCls} inputMode="numeric" value={costs.budget} maxLength={9} onChange={(e) => setCosts({ ...costs, budget: num(e.target.value).replace(".", "") })} />
+      </Field>
+      <p className="text-sm text-muted">{l("You can record what you actually spend on the crop page.", "प्रत्यक्ष खर्च पिकाच्या पानावर नोंदवू शकता.")}</p>
+      {editing && (
+        <EstimateEditor template={template} areaAcres={fc.areaAcres} overrides={costs.overrides} customLines={costs.customLines} onChange={(o, c) => setCosts({ ...costs, overrides: o, customLines: c })} onClose={() => setEditing(false)} />
+      )}
+      {rates && <LocalRatesSheet onClose={() => setRates(false)} />}
+    </div>
+  );
 }
 
 // ---- seasonal crops (incl. ratoon) ------------------------------------------------------------
 
 function SeasonalForm({ crop, step, setStep }: { crop: SeasonalCrop; step: number; setStep: (n: number) => void }) {
   const router = useRouter();
-  const { l, tx, ctx, today, num: n, addFarmCrop } = useFarm();
+  const { l, tx, ctx, today, num: n, state, addFarmCrop } = useFarm();
+  const [area, setArea] = useState("");
+  // the area is typed in this unit; the per-acre / per-hectare display toggle doesn't change it
+  const [unit, setUnit] = useState<AreaUnit>(state.myAreaUnit);
+  const acres = toAcres(Number(area) || 0, unit);
+  const [costs, setCosts] = useState<CostDraft>(NO_COSTS);
   const nowMonth = monthOf(today);
   const [seasonIndex, setSeasonIndex] = useState(seasonFor(crop, nowMonth).index);
   const [method, setMethod] = useState<FarmCrop["method"]>(crop.method === "both" ? "transplant" : crop.method);
   const [variety, setVariety] = useState("");
   const [plot, setPlot] = useState("");
-  const [area, setArea] = useState("");
   const [ratoon, setRatoon] = useState(0); // 0 = plant crop
   const [sown, setSown] = useState(true);
   const [date, setDate] = useState(today);
@@ -207,7 +253,7 @@ function SeasonalForm({ crop, step, setStep }: { crop: SeasonalCrop; step: numbe
     seasonIndex,
     variety,
     plotName: plot,
-    areaAcres: Number(area) || 0,
+    areaAcres: acres,
     method,
     status: sown ? "growing" : "planned",
     plannedSowingDate: sown ? null : date,
@@ -223,7 +269,7 @@ function SeasonalForm({ crop, step, setStep }: { crop: SeasonalCrop; step: numbe
   const validate = () => {
     const e: Record<string, string> = {};
     if (step === 1) {
-      const a = areaError(area, l);
+      const a = areaError(area, unit, l);
       if (a) e.area = a;
     }
     if (step === 2) {
@@ -240,7 +286,7 @@ function SeasonalForm({ crop, step, setStep }: { crop: SeasonalCrop; step: numbe
     const id = uid();
     const { id: _d, owner: _o, createdAt: _c, ...rest } = draft;
     void [_d, _o, _c];
-    addFarmCrop({ ...rest, id, ...common(plot, variety, area) }, crop);
+    addFarmCrop({ ...rest, id, ...common(plot, variety, acres), ...costFields(crop, draft, costs) }, crop);
     router.push(`/crops/my/${id}`);
   };
 
@@ -299,7 +345,7 @@ function SeasonalForm({ crop, step, setStep }: { crop: SeasonalCrop; step: numbe
               </div>
             </fieldset>
           )}
-          <Details plot={plot} setPlot={setPlot} variety={variety} setVariety={setVariety} area={area} setArea={setArea} err={err} />
+          <Details plot={plot} setPlot={setPlot} variety={variety} setVariety={setVariety} area={area} setArea={setArea} unit={unit} setUnit={setUnit} err={err} />
         </div>
       )}
 
@@ -352,7 +398,8 @@ function SeasonalForm({ crop, step, setStep }: { crop: SeasonalCrop; step: numbe
           {date && <Preview fc={draft} crop={crop} />}
         </div>
       )}
-      <Footer step={step} setStep={setStep} onNext={() => validate() && setStep(2)} onSave={save} />
+      {step === 3 && <EstimateStep fc={draft} crop={crop} costs={costs} setCosts={setCosts} />}
+      <Footer step={step} setStep={setStep} onNext={() => validate() && setStep(step + 1)} onSave={save} />
     </>
   );
 }
@@ -363,6 +410,9 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
   const router = useRouter();
   const { l, tx, ctx, today, num: n, state, addFarmCrop } = useFarm();
   const lang = state.lang === "mr" ? "mr" : "en";
+  // the area is typed in this unit; the per-acre / per-hectare display toggle doesn't change it
+  const [unit, setUnit] = useState<AreaUnit>(state.myAreaUnit);
+  const [costs, setCosts] = useState<CostDraft>(NO_COSTS);
   const [variety, setVariety] = useState("");
   const [plot, setPlot] = useState("");
   const [area, setArea] = useState("");
@@ -375,7 +425,8 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
   const ageYears = plantedOn && !planned ? Math.floor(daysBetween(plantedOn, today) / 365.25) : 0;
   const young = ageYears < crop.yearsToFirstHarvest[0];
   const cycle = crop.cycles.find((c) => c.key === cycleKey);
-  const suggestedPlants = area && Number(area) > 0 ? Math.round(((crop.plantsPerAcre[0] + crop.plantsPerAcre[1]) / 2) * Number(area)) : null;
+  const acres = toAcres(Number(area) || 0, unit);
+  const suggestedPlants = acres > 0 ? Math.round(((crop.plantsPerAcre[0] + crop.plantsPerAcre[1]) / 2) * acres) : null;
 
   const draft: FarmCrop = {
     id: "draft",
@@ -386,7 +437,7 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
     seasonIndex: 0,
     variety,
     plotName: plot,
-    areaAcres: Number(area) || 0,
+    areaAcres: acres,
     method: "transplant",
     status: planned ? "planned" : "growing",
     plannedSowingDate: planned ? plantedOn : null,
@@ -405,7 +456,7 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
   const validate = () => {
     const e: Record<string, string> = {};
     if (step === 1) {
-      const a = areaError(area, l);
+      const a = areaError(area, unit, l);
       if (a) e.area = a;
       if (plants && !(Number(plants) > 0 && Number(plants) <= 100000)) e.plants = l("Enter a number of plants, or leave empty", "झाडांची संख्या लिहा किंवा रिकामे ठेवा");
     }
@@ -426,7 +477,7 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
     const id = uid();
     const { id: _d, owner: _o, createdAt: _c, ...rest } = draft;
     void [_d, _o, _c];
-    addFarmCrop({ ...rest, id, ...common(plot, variety, area) }, crop);
+    addFarmCrop({ ...rest, id, ...common(plot, variety, acres), ...costFields(crop, draft, costs) }, crop);
     router.push(`/crops/my/${id}`);
   };
 
@@ -435,7 +486,7 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
       {step === 1 && (
         <div className="space-y-5">
           <ChosenCrop crop={crop} onChange={() => setStep(0)} />
-          <Details plot={plot} setPlot={setPlot} variety={variety} setVariety={setVariety} area={area} setArea={setArea} err={err} />
+          <Details plot={plot} setPlot={setPlot} variety={variety} setVariety={setVariety} area={area} setArea={setArea} unit={unit} setUnit={setUnit} err={err} />
           <Field label={l("Number of plants (optional)", "झाडांची संख्या (पर्यायी)")} error={err.plants} hint={suggestedPlants ? l(`About ${suggestedPlants} for this area`, `या क्षेत्रासाठी साधारण ${n(suggestedPlants)}`) : undefined}>
             <Input className={inputCls} inputMode="numeric" value={plants} maxLength={6} onChange={(e) => setPlants(num(e.target.value).replace(".", ""))} />
           </Field>
@@ -475,7 +526,8 @@ function PerennialForm({ crop, step, setStep }: { crop: PerennialCrop; step: num
           {plantedOn && <Preview fc={draft} crop={crop} />}
         </div>
       )}
-      <Footer step={step} setStep={setStep} onNext={() => validate() && setStep(2)} onSave={save} />
+      {step === 3 && <EstimateStep fc={draft} crop={crop} costs={costs} setCosts={setCosts} />}
+      <Footer step={step} setStep={setStep} onNext={() => validate() && setStep(step + 1)} onSave={save} />
     </>
   );
 }
@@ -487,6 +539,8 @@ function Details({
   setVariety,
   area,
   setArea,
+  unit,
+  setUnit,
   err,
 }: {
   plot: string;
@@ -495,9 +549,11 @@ function Details({
   setVariety: (v: string) => void;
   area: string;
   setArea: (v: string) => void;
+  unit: AreaUnit;
+  setUnit: (u: AreaUnit) => void;
   err: Record<string, string>;
 }) {
-  const { l } = useFarm();
+  const { l, tx, setAreaUnit } = useFarm();
   return (
     <>
       <Field label={l("Variety (optional)", "वाण (पर्यायी)")}>
@@ -506,8 +562,20 @@ function Details({
       <Field label={l("Plot name (optional)", "शेताचे नाव (पर्यायी)")}>
         <Input className={inputCls} value={plot} maxLength={40} onChange={(e) => setPlot(e.target.value)} placeholder={l("e.g. Field near well", "उदा. विहिरीजवळचे शेत")} />
       </Field>
-      <Field label={l("Area in acres *", "क्षेत्र एकरमध्ये *")} error={err.area}>
-        <Input className={inputCls} inputMode="decimal" value={area} maxLength={6} onChange={(e) => setArea(num(e.target.value))} />
+      <Field label={l(`Area in ${tx(AREA_NAME[unit])} *`, `क्षेत्र (${tx(AREA_NAME[unit])}) *`)} error={err.area} hint={l("1 hectare = 2.471 acres · 1 acre = 40 guntha", "१ हेक्टर = २.४७१ एकर · १ एकर = ४० गुंठे")}>
+        <div className="flex gap-2">
+          <Input className={inputCls} wrapClassName="min-w-0 flex-1" inputMode="decimal" value={area} maxLength={7} onChange={(e) => setArea(num(e.target.value))} />
+          <select aria-label={l("Area unit", "क्षेत्राचे एकक")} value={unit} onChange={(e) => {
+              setUnit(e.target.value as AreaUnit);
+              setAreaUnit(e.target.value as AreaUnit);
+            }} className="min-h-12 rounded-xl border border-line bg-white px-2 font-semibold">
+            {(["acre", "hectare", "guntha"] as const).map((u) => (
+              <option key={u} value={u}>
+                {tx(AREA_NAME[u])}
+              </option>
+            ))}
+          </select>
+        </div>
       </Field>
     </>
   );

@@ -9,7 +9,8 @@ import { bi } from "./i18n";
 import { emptyAccount, type Account } from "./account";
 import { addDays } from "./lifecycle";
 import type { MitraRate } from "./mandi/prices";
-import type { Buyer, FarmLocation, FarmActivity, FarmCrop, FarmerProfile, TaskState, Guide, Listing, Lot, Offer, Report, Scheme } from "./types";
+import type { LocalRates } from "./costs/local-rates";
+import type { Buyer, Expense, Sale, FarmLocation, FarmActivity, FarmCrop, FarmerProfile, TaskState, Guide, Listing, Lot, Offer, Report, Scheme } from "./types";
 
 /** Mandi Mitra fee schedule, shown to farmers before they accept an offer. */
 export const MITRA_FEE_PER_QUINTAL = 30;
@@ -645,4 +646,65 @@ export function seedFarm(today: string): { crops: FarmCrop[]; activities: FarmAc
     { farmCropId: "fc-pomegranate-demo", taskKey: `mr-obs1:${d(-6)}`, status: "done", at: d(-6) },
   ];
   return { crops, activities, taskStates };
+}
+
+/**
+ * My Farm money demo (dates relative to today): onion expenses so far, the pomegranate orchard's
+ * set-up costs 3 years ago, last year's bahar with its sales, and this bahar's costs so far.
+ * Sunita's labour and tractor rates differ from the defaults.
+ */
+export function seedMoney(today: string, crops: FarmCrop[]): { expenses: Expense[]; sales: Sale[]; localRates: LocalRates } {
+  const d = (n: number) => addDays(today, n);
+  const onion = crops.find((c) => c.cropId === "onion")!.id;
+  const pom = crops.find((c) => c.cropId === "pomegranate")!.id;
+  let n = 0;
+  const ex = (farmCropId: string, day: number, category: Expense["category"], item: string, amount: number, extra: Partial<Expense> = {}): Expense => ({
+    id: `ex-demo-${++n}`,
+    owner: SEED_FARMER_ACCOUNT,
+    farmCropId,
+    category,
+    item,
+    amount,
+    date: d(day),
+    cashPaid: true,
+    createdAt: d(day),
+    ...extra,
+  });
+  const expenses: Expense[] = [
+    // onion, 1.5 acre: nursery sown 90 days ago, transplanted 45 days ago
+    ex(onion, -95, "land_prep", "नांगरणी (ट्रॅक्टर)", 4500, { qty: 4.5, unit: "तास", templateLineId: "plough" }),
+    ex(onion, -94, "land_prep", "रोटावेटर", 2700, { templateLineId: "rotavator" }),
+    ex(onion, -90, "seed", "कांदा बियाणे N-2-4-1", 11000, { qty: 4.5, unit: "किलो", templateLineId: "seed", billPhotoId: "demo-bill" }),
+    ex(onion, -60, "labour", "रोपवाटिका निगा", 2800, { qty: 8, unit: "महिला मजूर-दिवस", templateLineId: "nursery" }),
+    ex(onion, -50, "manure", "शेणखत", 18000, { qty: 6, unit: "ट्रॉली", templateLineId: "fym" }),
+    ex(onion, -47, "labour", "वाफे तयार करणे", 3600, { qty: 8, unit: "पुरुष मजूर-दिवस", templateLineId: "beds" }),
+    ex(onion, -45, "labour", "लागवड", 13125, { qty: 37.5, unit: "महिला मजूर-दिवस", templateLineId: "planting", note: "25 मजूर × 1.5 दिवस × ₹350" }),
+    ex(onion, -40, "fertiliser", "रासायनिक खते", 7400, { templateLineId: "fert" }),
+    ex(onion, -30, "irrigation", "पंपाचे वीज बिल", 900, { templateLineId: "power" }),
+    ex(onion, -25, "labour", "खुरपणी (घरचे)", 2100, { qty: 6, unit: "महिला मजूर-दिवस", cashPaid: false, templateLineId: "weeding", note: "घरचे काम — पैसे दिले नाहीत" }),
+    ex(onion, -20, "labour", "खुरपणी", 7000, { qty: 20, unit: "महिला मजूर-दिवस", templateLineId: "weeding" }),
+    ex(onion, -6, "plant_protection", "फवारणी फेरी", 1800, { templateLineId: "spray" }),
+    // pomegranate, 1 acre: set up 3 years ago
+    ex(pom, -3 * 365 - 10, "land_prep", "खड्डे व लागवड", 12000, { templateLineId: "pits" }),
+    ex(pom, -3 * 365 - 5, "seed", "भगवा कलमे (280)", 12600, { qty: 280, unit: "रोपे", templateLineId: "plants" }),
+    ex(pom, -3 * 365, "irrigation", "ठिबक संच", 42000, { templateLineId: "drip" }),
+    ex(pom, -2 * 365, "other", "पहिल्या वर्षांची निगा", 26000, { templateLineId: "firstyears" }),
+    // last year's mrig bahar (started ~425 days ago, sold ~185 days ago)
+    ex(pom, -425, "labour", "छाटणी व बहार धरणे", 4500, { templateLineId: "pruning" }),
+    ex(pom, -420, "fertiliser", "रासायनिक खते", 14000, { templateLineId: "fert" }),
+    ex(pom, -380, "plant_protection", "फवारणी फेऱ्या", 16000, { templateLineId: "spray" }),
+    ex(pom, -300, "labour", "विरळणी व पिशव्या", 9000, { templateLineId: "care" }),
+    ex(pom, -190, "labour", "काढणी व प्रतवारी", 6000, { templateLineId: "harvest" }),
+    ex(pom, -186, "transport_market", "वाहतूक व हमाली", 6500, { templateLineId: "transport" }),
+    // this mrig bahar (started 60 days ago)
+    ex(pom, -60, "labour", "छाटणी व बहार धरणे", 4700, { templateLineId: "pruning" }),
+    ex(pom, -55, "fertiliser", "रासायनिक खते", 15000, { templateLineId: "fert" }),
+    ex(pom, -20, "plant_protection", "फवारणी फेऱ्या", 6000, { templateLineId: "spray" }),
+  ];
+  const sales: Sale[] = [
+    // the young orchard's first bahar: a small crop
+    { id: "sa-demo-1", owner: SEED_FARMER_ACCOUNT, farmCropId: pom, date: d(-188), gradeCode: "pomegranate.no1", qty: 900, unit: "kg", ratePerUnit: 85, amount: 76500 - 3000, deductions: 3000, marketId: "sangola" },
+    { id: "sa-demo-2", owner: SEED_FARMER_ACCOUNT, farmCropId: pom, date: d(-186), gradeCode: "pomegranate.no2", qty: 600, unit: "kg", ratePerUnit: 55, amount: 33000, marketId: "sangola" },
+  ];
+  return { expenses, sales, localRates: { labour_day_female: 350, tractor_hour: 1000 } };
 }

@@ -15,6 +15,7 @@ import {
   seedBuyers,
   seedGuides,
   seedMandi,
+  seedMoney,
   SEED_FARMER_LOCATION,
   seedProfile,
   seedReports,
@@ -28,6 +29,8 @@ import { occurrences, todayISO } from "./lifecycle";
 import { convert, gradingFor, UNSURE, type Unit } from "./grades";
 import type { MitraRate } from "./mandi/prices";
 import type { VehicleChoice } from "./mandi/profit";
+import type { AreaUnit } from "./costs/categories";
+import type { LocalRates } from "./costs/local-rates";
 import type {
   ActivityItem,
   BusinessPlan,
@@ -41,6 +44,8 @@ import type {
   CheckRecord,
   FarmLocation,
   SellPlan,
+  Expense,
+  Sale,
   Report,
   Role,
   Scheme,
@@ -88,11 +93,17 @@ interface AppState {
   /** each account's location for distances (on this phone only) and vehicle choice */
   locationBy: Record<string, FarmLocation>;
   vehicleBy: Record<string, VehicleChoice>;
+  /** My Farm money: expenses and sales (on this phone only), local rates and area unit per account */
+  expenses: Expense[];
+  sales: Sale[];
+  localRatesBy: Record<string, LocalRates>;
+  areaUnitBy: Record<string, AreaUnit>;
 }
 
 const initialState = (): AppState => {
   const farm = seedFarm(todayISO());
   const mandi = seedMandi(todayISO());
+  const money = seedMoney(todayISO(), farm.crops);
   return {
   role: "farmer",
   lang: "en",
@@ -126,10 +137,16 @@ const initialState = (): AppState => {
   sellPlans: [],
   locationBy: { [SEED_FARMER_ACCOUNT]: SEED_FARMER_LOCATION },
   vehicleBy: {},
+  expenses: money.expenses,
+  sales: money.sales,
+  localRatesBy: { [SEED_FARMER_ACCOUNT]: money.localRates },
+  areaUnitBy: {},
   };
 };
 
-const STORAGE_KEY = "udyamsetu-state-v7";
+const STORAGE_KEY = "udyamsetu-state-v8";
+/** v7 → v8: My Farm expenses, sales and local rates were added; older data is kept as it is */
+const V7_STORAGE_KEY = "udyamsetu-state-v7";
 const V6_STORAGE_KEY = "udyamsetu-state-v6";
 const V5_STORAGE_KEY = "udyamsetu-state-v5";
 const V4_STORAGE_KEY = "udyamsetu-state-v4";
@@ -191,6 +208,11 @@ const withValidTheme = (saved: Partial<AppState>): Partial<AppState> => ({ ...sa
 function loadSaved(): Partial<AppState> | null {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) return withValidTheme(JSON.parse(raw));
+  const v7 = localStorage.getItem(V7_STORAGE_KEY);
+  if (v7) {
+    localStorage.removeItem(V7_STORAGE_KEY);
+    return withValidTheme(JSON.parse(v7));
+  }
   const v6 = localStorage.getItem(V6_STORAGE_KEY);
   if (v6) {
     localStorage.removeItem(V6_STORAGE_KEY);
@@ -490,6 +512,25 @@ function useAppStore() {
         }),
       setLotTarget: (lotId: string, marketId: string) => setState((s) => ({ ...s, lots: s.lots.map((l) => (l.id === lotId ? { ...l, targetMarketId: marketId } : l)) })),
 
+      // ---- My Farm money (all on this phone)
+      addExpense: (x: Omit<Expense, "id" | "owner" | "createdAt">) =>
+        setState((s) => ({ ...s, expenses: [{ ...x, id: uid("ex"), owner: who(s), createdAt: todayISO() }, ...s.expenses] })),
+      updateExpense: (id: string, patch: Partial<Omit<Expense, "id" | "owner">>) =>
+        setState((s) => ({ ...s, expenses: s.expenses.map((e) => (e.id === id && e.owner === who(s) ? { ...e, ...patch } : e)) })),
+      deleteExpense: (id: string) =>
+        setState((s) => {
+          later(bi("Expense deleted", "खर्च काढून टाकला"));
+          return { ...s, expenses: s.expenses.filter((e) => !(e.id === id && e.owner === who(s))) };
+        }),
+      addSale: (x: Omit<Sale, "id" | "owner">) =>
+        setState((s) => {
+          later(bi("Sale recorded", "विक्रीची नोंद झाली"));
+          return { ...s, sales: [{ ...x, id: uid("sa"), owner: who(s) }, ...s.sales] };
+        }),
+      deleteSale: (id: string) => setState((s) => ({ ...s, sales: s.sales.filter((x) => !(x.id === id && x.owner === who(s))) })),
+      setLocalRates: (rates: LocalRates) => setState((s) => ({ ...s, localRatesBy: { ...s.localRatesBy, [who(s)]: rates } })),
+      setAreaUnit: (u: AreaUnit) => setState((s) => ({ ...s, areaUnitBy: { ...s.areaUnitBy, [who(s)]: u } })),
+
       savePlan: (plan: Omit<BusinessPlan, "id" | "savedAt" | "owner">) =>
         setState((s) => {
           later(bi("Business plan saved", "व्यवसाय आराखडा जतन केला"));
@@ -602,7 +643,7 @@ function useAppStore() {
           };
         }),
       /** save a log entry; when it came from a task, that task occurrence is marked done too */
-      logFarmActivity: (a: Omit<FarmActivity, "id" | "createdAt">) =>
+      logFarmActivity: (a: Omit<FarmActivity, "id" | "createdAt">, cost?: Omit<Expense, "id" | "owner" | "farmCropId" | "date" | "createdAt" | "activityId">) =>
         setState((s) => {
           if (!s.farmCrops.some((c) => c.id === a.farmCropId && c.owner === s.sessionId)) return s;
           later(bi("Saved to the activity log", "कामांच्या नोंदीत जतन केले"));
@@ -612,7 +653,8 @@ function useAppStore() {
             linked && !s.taskStates.some((t) => t.farmCropId === a.farmCropId && t.taskKey === linked)
               ? [...s.taskStates, { farmCropId: a.farmCropId, taskKey: linked, status: "done" as const, at: todayISO() }]
               : s.taskStates;
-          return { ...s, farmActivities: [entry, ...s.farmActivities], taskStates };
+          const expenses = cost && cost.amount > 0 ? [{ ...cost, id: uid("ex"), owner: who(s), farmCropId: a.farmCropId, date: a.date, activityId: entry.id, createdAt: todayISO() }, ...s.expenses] : s.expenses;
+          return { ...s, farmActivities: [entry, ...s.farmActivities], taskStates, expenses };
         }),
       setTaskState: (farmCropId: string, taskKey: string, status: TaskState["status"]) =>
         setState((s) => {
@@ -709,6 +751,10 @@ function useAppStore() {
       myLocation: state.locationBy[key] as FarmLocation | undefined,
       myVehicle: state.vehicleBy[key] ?? ({ vehicleId: "auto" } as VehicleChoice),
       mySellPlans: state.sellPlans.filter((p) => p.owner === key),
+      myExpenses: state.expenses.filter((e) => e.owner === key),
+      mySales: state.sales.filter((x) => x.owner === key),
+      myLocalRates: state.localRatesBy[key] ?? ({} as LocalRates),
+      myAreaUnit: state.areaUnitBy[key] ?? ("acre" as AreaUnit),
       myStressObservations: (state.stressObservations || []).filter((o) => state.farmCrops.some((c) => c.id === o.farmCropId && c.owner === sessionId)),
     }),
     [state, key, sessionId],

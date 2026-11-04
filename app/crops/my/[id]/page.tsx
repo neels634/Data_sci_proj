@@ -49,7 +49,9 @@ import { lastStageStart, readFieldHistory, recordLines } from "@/lib/fieldHistor
 import { Input } from "@/components/voice";
 import { SpeakButton } from "@/components/speech";
 import { ordinalMr, toAsciiDigits } from "@/lib/marathi-numbers";
-import { Button, Card, DemoBadge, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+import { Button, Card, DemoBadge, Empty, Field, LinkButton, PageHeader, SectionTitle, cx, inputCls } from "@/components/ui";
+import { CropMoney } from "@/components/costs/money";
+
 import { copyText } from "@/lib/copy";
 
 function compressObservationPhoto(file: File): Promise<string> {
@@ -126,6 +128,7 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [log, setLog] = useState<{ type?: ActivityType; linkedTaskId?: string } | null>(null);
+  const [tab, setTab] = useState<"crop" | "money">(() => (typeof window !== "undefined" && window.location.hash === "#money" ? "money" : "crop"));
 
   // Crop stress recording sheet & preview
   const [showStressForm, setShowStressForm] = useState(false);
@@ -288,6 +291,17 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
           </div>
         }
       />
+      <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-sand p-1" role="tablist" aria-label={l("Crop or money", "पीक किंवा खर्च")}>
+        {(["crop", "money"] as const).map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cx("min-h-12 rounded-xl text-[17px] font-bold", tab === t ? "bg-white text-leaf-900 shadow" : "text-muted")}>
+            {t === "crop" ? l("Crop", "पीक") : l("Expenses", "खर्च")}
+          </button>
+        ))}
+      </div>
+      {tab === "money" ? (
+        <CropMoney fc={fc} crop={crop} />
+      ) : (
+        <>
 
       {editing && <EditCrop fc={fc} onDone={() => setEditing(false)} />}
 
@@ -750,6 +764,8 @@ function Detail({ fc, crop }: { fc: FarmCrop; crop: CropInfo }) {
             </Button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
