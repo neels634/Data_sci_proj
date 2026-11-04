@@ -78,3 +78,25 @@ class ErrorResponse(BaseModel):
     detail: str
     code: Optional[str] = None
     timestamp: Optional[str] = None
+
+class MandiPrice(BaseModel):
+    """One market's price row from AGMARKNET (data.gov.in), in ₹ per quintal."""
+    commodity: str
+    state: str
+    district: str
+    market: str
+    variety: str
+    grade: str
+    arrival_date: str  # YYYY-MM-DD
+    price_min: float
+    price_max: float
+    price_modal: float
+    unit: str = "₹/quintal"
+
+
+class MandiPricesResponse(BaseModel):
+    """Mandi prices plus when they were fetched from data.gov.in."""
+    source: str  # "live" or "cache"
+    retrieved_at: str  # ISO timestamp (UTC)
+    count: int
+    records: List[MandiPrice]
