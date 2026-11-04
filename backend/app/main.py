@@ -19,7 +19,7 @@ import uvicorn
 
 from .config import settings
 from .model_service import model_service
-from .routers import health_router, predict_router
+from .routers import health_router, predict_router, mandi_router
 from .routers.predict import limiter
 from .security import (
     SecurityAuditLogger,
@@ -49,7 +49,9 @@ response_cache = ResponseCache()
 task_manager = AsyncTaskManager(max_concurrent_tasks=getattr(settings, 'max_concurrent_predictions', 10))
 
 # Security setup
-security = HTTPBearer(auto_error=False) if settings.api_key else None
+# Always a real HTTPBearer: Depends(None) makes FastAPI ask for `args`/`kwargs` query params (422).
+# verify_api_key itself lets requests through when no API_KEY is configured.
+security = HTTPBearer(auto_error=False)
 
 
 async def verify_api_key(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
@@ -189,6 +191,12 @@ app.include_router(
     predict_router,
     prefix="/api",
     tags=["Prediction"],
+    dependencies=[Depends(verify_api_key)],
+)
+app.include_router(
+    mandi_router,
+    prefix="/api",
+    tags=["Mandi"],
     dependencies=[Depends(verify_api_key)],
 )
 
